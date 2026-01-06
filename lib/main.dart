@@ -6,6 +6,9 @@ import 'providers/filters_provider.dart';
 import 'api/api_client.dart';
 import 'router.dart';
 
+// ✅ AJOUT : thème DishAware
+import 'theme/da_theme.dart';
+
 String? globalToken;
 
 void main() async {
@@ -29,9 +32,16 @@ class DishAwareApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'DishAware',
+
+      // ✅ ROUTER INCHANGÉ
       routerConfig: appRouter,
 
-      // ✅ PROVIDERS AU BON ENDROIT
+      // ✅ THÈMES AJOUTÉS (AUCUN IMPACT SUR LE ROUTING)
+      theme: DATheme.light(),
+      darkTheme: DATheme.dark(),
+      themeMode: ThemeMode.system,
+
+      // ✅ PROVIDERS AU BON ENDROIT (INCHANGÉ)
       builder: (context, child) {
         return MultiProvider(
           providers: [

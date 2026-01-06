@@ -5,6 +5,12 @@ import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import 'orders_screen.dart';
 
+// ✅ UI DishAware
+import '../ui/components/da_card.dart';
+import '../ui/components/da_button.dart';
+import '../ui/components/da_badge.dart';
+import '../ui/components/da_avatar.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -76,6 +82,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ===============================
+                // 👤 AVATAR (TEST DAAvatar)
+                // ===============================
+                Center(
+                  child: Column(
+                    children: [
+                      DAAvatar(
+                        name: profile.name,
+                        size: 72,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        profile.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ===============================
                 // 👤 INFOS PERSONNELLES
                 // ===============================
                 const Text(
@@ -83,7 +113,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                Card(
+
+                DACard(
                   child: ListTile(
                     leading: const Icon(Icons.person),
                     title: Text(profile.name),
@@ -101,7 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                Card(
+
+                DACard(
                   child: ListTile(
                     leading: const Icon(
                       Icons.local_fire_department,
@@ -119,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
 
                 // ===============================
-                // 🧬 CONTRAINTES SANTÉ
+                // 🧬 CONTRAINTES SANTÉ (TEST DABadge)
                 // ===============================
                 const Text(
                   'Contraintes de santé',
@@ -131,8 +163,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: profile.allergies
-                      .map((a) => Chip(label: Text(a)))
+                      .map(
+                        (a) => DABadge(
+                          label: a,
+                          variant: DABadgeVariant.destructive,
+                        ),
+                      )
                       .toList(),
                 ),
 
@@ -142,8 +180,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: profile.forbiddenIngredients
-                      .map((i) => Chip(label: Text(i)))
+                      .map(
+                        (i) => DABadge(
+                          label: i,
+                          variant: DABadgeVariant.outline,
+                        ),
+                      )
                       .toList(),
                 ),
 
@@ -159,46 +203,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 12),
 
                 const Text('Types de cuisine'),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: profile.cuisines
-                      .map((c) => Chip(label: Text(c)))
+                      .map(
+                        (c) => DABadge(
+                          label: c,
+                          variant: DABadgeVariant.secondary,
+                        ),
+                      )
                       .toList(),
                 ),
 
                 const SizedBox(height: 12),
 
                 const Text('Types de plats'),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: profile.dishes
-                      .map((d) => Chip(label: Text(d)))
+                      .map(
+                        (d) => DABadge(
+                          label: d,
+                        ),
+                      )
                       .toList(),
                 ),
 
                 const SizedBox(height: 32),
 
                 // ===============================
-                // 🛠️ ACTIONS
+                // 🛠️ ACTIONS (TEST DAButton)
                 // ===============================
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _goToEditProfile(context),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Modifier mon profil'),
-                  ),
+                DAButton(
+                  label: 'Modifier mon profil',
+                  fullWidth: true,
+                  onPressed: () => _goToEditProfile(context),
                 ),
 
                 const SizedBox(height: 12),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _goToOrders(context),
-                    icon: const Icon(Icons.receipt_long),
-                    label: const Text('Mon historique'),
-                  ),
+                DAButton(
+                  label: 'Mon historique',
+                  variant: DAButtonVariant.outline,
+                  fullWidth: true,
+                  onPressed: () => _goToOrders(context),
                 ),
               ],
             ),
