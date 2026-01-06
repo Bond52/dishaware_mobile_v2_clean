@@ -1,0 +1,38 @@
+name: dishaware_mobile_v2
+description: "DishAware Mobile v2"
+publish_to: 'none'
+
+version: 1.0.0+4
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # ✅ HTTP client (bas niveau – utilisé dans api_service.dart)
+  http: ^1.2.2
+
+  # ✅ HTTP client avancé (Dio – déjà utilisé ailleurs)
+  dio: ^5.4.0
+
+  # ✅ Routing (login / home / guards)
+  go_router: ^14.2.0
+
+  # ✅ Stockage local (token auth)
+  shared_preferences: ^2.2.3
+
+  # ✅ State management (filtres globaux)
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
