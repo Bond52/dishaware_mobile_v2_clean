@@ -10,6 +10,14 @@ import '../ui/components/da_card.dart';
 import '../ui/components/da_button.dart';
 import '../ui/components/da_badge.dart';
 import '../ui/components/da_avatar.dart';
+import '../ui/components/da_label.dart';
+import '../ui/components/da_input.dart';
+import '../ui/components/da_checkbox.dart';
+import '../ui/components/da_radio_group.dart';
+import '../ui/components/da_select.dart';
+import '../ui/components/da_switch.dart';
+import '../ui/components/da_progress.dart';
+import '../ui/components/da_skeleton.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,6 +28,18 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<ProfileModel> profileFuture;
+
+  // ===============================
+  // 🧪 ÉTAT LOCAL (TEST UNIQUEMENT)
+  // ===============================
+  bool testVegetarian = false;
+  String testMealTime = 'Déjeuner';
+
+  bool testNotifications = true;
+  String testLanguage = 'Français';
+
+  double testProgress = 0.65;
+  bool testLoading = false;
 
   @override
   void initState() {
@@ -55,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Mon profil'),
         centerTitle: true,
-        // ⛔️ PAS DE leading → pas de bug GoRouter
       ),
       body: FutureBuilder<ProfileModel>(
         future: profileFuture,
@@ -82,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ===============================
-                // 👤 AVATAR (TEST DAAvatar)
+                // 👤 AVATAR
                 // ===============================
                 Center(
                   child: Column(
@@ -148,95 +167,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // ===============================
-                // 🧬 CONTRAINTES SANTÉ (TEST DABadge)
+                // 🧪 TEST PROGRESS & SKELETON
                 // ===============================
                 const Text(
-                  'Contraintes de santé',
+                  'Tests progress & skeleton (temporaire)',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
 
-                const Text('Allergies'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: profile.allergies
-                      .map(
-                        (a) => DABadge(
-                          label: a,
-                          variant: DABadgeVariant.destructive,
-                        ),
-                      )
-                      .toList(),
+                DAProgress(
+                  value: testProgress,
+                  label: 'Complétion du profil',
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                const Text('Ingrédients interdits'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: profile.forbiddenIngredients
-                      .map(
-                        (i) => DABadge(
-                          label: i,
-                          variant: DABadgeVariant.outline,
-                        ),
-                      )
-                      .toList(),
+                DASwitch(
+                  label: 'Simuler chargement',
+                  value: testLoading,
+                  onChanged: (v) {
+                    setState(() {
+                      testLoading = v;
+                    });
+                  },
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // ===============================
-                // 🍽️ PRÉFÉRENCES ALIMENTAIRES
-                // ===============================
-                const Text(
-                  'Préférences alimentaires',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-
-                const Text('Types de cuisine'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: profile.cuisines
-                      .map(
-                        (c) => DABadge(
-                          label: c,
-                          variant: DABadgeVariant.secondary,
-                        ),
-                      )
-                      .toList(),
-                ),
-
-                const SizedBox(height: 12),
-
-                const Text('Types de plats'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: profile.dishes
-                      .map(
-                        (d) => DABadge(
-                          label: d,
-                        ),
-                      )
-                      .toList(),
-                ),
+                if (testLoading) ...[
+                  const DASkeleton(height: 20),
+                  const SizedBox(height: 8),
+                  const DASkeleton(height: 20, width: 220),
+                  const SizedBox(height: 8),
+                  const DASkeleton(height: 80),
+                ],
 
                 const SizedBox(height: 32),
 
                 // ===============================
-                // 🛠️ ACTIONS (TEST DAButton)
+                // 🛠️ ACTIONS
                 // ===============================
                 DAButton(
                   label: 'Modifier mon profil',
