@@ -5,6 +5,7 @@ import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
 import 'nearby_restaurants_screen.dart';
 import 'host_mode_guests_screen.dart';
+import 'dish_details_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -337,7 +338,14 @@ class _RecommendationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DACard(
       padding: EdgeInsets.zero,
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DishDetailsScreen(),
+          ),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
