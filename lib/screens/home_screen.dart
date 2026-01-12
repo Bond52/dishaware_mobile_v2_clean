@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../ui/components/da_card.dart';
 import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
+import 'nearby_restaurants_screen.dart';
+import 'host_mode_guests_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -10,10 +12,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accueil'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Accueil'), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -171,7 +170,14 @@ class HomeScreen extends StatelessWidget {
             icon: Icons.location_on,
             label: 'Restaurants près de moi',
             color: const Color(0xFF4CAF50),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NearbyRestaurantsScreen(),
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(width: 16),
@@ -180,7 +186,14 @@ class HomeScreen extends StatelessWidget {
             icon: Icons.lightbulb_outline,
             label: 'Mode Hôte',
             color: const Color(0xFF9C27B0),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HostModeGuestsScreen(),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -268,6 +281,7 @@ class _ActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(16),
+          constraints: const BoxConstraints(minHeight: 88),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: DAColors.border),
@@ -280,6 +294,8 @@ class _ActionButton extends StatelessWidget {
             ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: color, size: 24),
               const SizedBox(height: 8),
@@ -343,7 +359,10 @@ class _RecommendationCard extends StatelessWidget {
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(20),
