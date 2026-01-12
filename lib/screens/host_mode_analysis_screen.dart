@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/da_colors.dart';
+import 'host_mode_menu_screen.dart';
 
 class HostModeAnalysisScreen extends StatelessWidget {
   const HostModeAnalysisScreen({super.key});
@@ -64,7 +65,14 @@ class HostModeAnalysisScreen extends StatelessWidget {
               width: double.infinity,
               height: 44,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HostModeMenuScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
                   foregroundColor: Colors.white,
@@ -92,7 +100,12 @@ class HostModeAnalysisScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _StepIndicator(number: 1, label: 'Invités', isActive: false, isCompleted: true),
+          _StepIndicator(
+            number: 1,
+            label: 'Invités',
+            isActive: false,
+            isCompleted: true,
+          ),
           Expanded(
             child: Container(
               height: 2,
@@ -100,7 +113,12 @@ class HostModeAnalysisScreen extends StatelessWidget {
               color: const Color(0xFF4CAF50),
             ),
           ),
-          _StepIndicator(number: 2, label: 'Analyse', isActive: true, isCompleted: false),
+          _StepIndicator(
+            number: 2,
+            label: 'Analyse',
+            isActive: true,
+            isCompleted: false,
+          ),
           Expanded(
             child: Container(
               height: 2,
@@ -108,7 +126,12 @@ class HostModeAnalysisScreen extends StatelessWidget {
               color: const Color(0xFFE0E0E0),
             ),
           ),
-          _StepIndicator(number: 3, label: 'Menu', isActive: false, isCompleted: false),
+          _StepIndicator(
+            number: 3,
+            label: 'Menu',
+            isActive: false,
+            isCompleted: false,
+          ),
         ],
       ),
     );
@@ -133,11 +156,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
                   color: const Color(0xFF4CAF50),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.people,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.people, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               const Column(
@@ -238,11 +257,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.favorite,
-              size: 20,
-              color: Color(0xFF4CAF50),
-            ),
+            const Icon(Icons.favorite, size: 20, color: Color(0xFF4CAF50)),
             const SizedBox(width: 8),
             const Text(
               'Préférences communes',
@@ -316,7 +331,9 @@ class _StepIndicator extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: isActive || isCompleted ? const Color(0xFF4CAF50) : const Color(0xFFE0E0E0),
+            color: isActive || isCompleted
+                ? const Color(0xFF4CAF50)
+                : const Color(0xFFE0E0E0),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -327,7 +344,9 @@ class _StepIndicator extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isActive || isCompleted ? Colors.white : const Color(0xFF9E9E9E),
+                      color: isActive || isCompleted
+                          ? Colors.white
+                          : const Color(0xFF9E9E9E),
                     ),
                   ),
           ),
@@ -338,7 +357,9 @@ class _StepIndicator extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: isActive || isCompleted ? const Color(0xFF4CAF50) : const Color(0xFF9E9E9E),
+            color: isActive || isCompleted
+                ? const Color(0xFF4CAF50)
+                : const Color(0xFF9E9E9E),
           ),
         ),
       ],
@@ -395,10 +416,7 @@ class _PillTag extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _PillTag({
-    required this.label,
-    required this.color,
-  });
+  const _PillTag({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
