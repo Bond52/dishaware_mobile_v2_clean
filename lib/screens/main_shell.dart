@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../theme/da_colors.dart';
 import 'home_screen.dart';
-import 'placeholder_screen.dart';
-import 'profile_screen.dart';
+import 'explorer_screen.dart';
+import 'favorites_screen.dart';
+import 'profile_screen_new.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -16,14 +18,15 @@ class _MainShellState extends State<MainShell> {
 
   final screens = const [
     HomeScreen(),
-    PlaceholderScreen(title: 'Explorer'),
-    ProfileScreen(),
+    ExplorerScreen(),
+    FavoritesScreen(),
+    ProfileScreenNew(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: screens[currentIndex],
+      body: IndexedStack(index: currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) {
@@ -31,19 +34,17 @@ class _MainShellState extends State<MainShell> {
             currentIndex = index;
           });
         },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: const Color(0xFF4CAF50),
+        unselectedItemColor: DAColors.mutedForeground,
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Explorer'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
+            icon: Icon(Icons.favorite_border),
+            label: 'Favoris',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Explorer',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );
