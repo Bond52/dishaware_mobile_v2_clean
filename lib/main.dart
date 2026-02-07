@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'providers/filters_provider.dart';
 import 'api/api_client.dart';
 import 'router.dart';
+import 'features/onboarding/providers/auth_provider.dart';
+import 'features/onboarding/providers/onboarding_provider.dart';
+import 'features/profile/providers/profile_provider.dart';
 
 // ✅ AJOUT : thème DishAware
 import 'theme/da_theme.dart';
@@ -47,6 +50,17 @@ class DishAwareApp extends StatelessWidget {
           providers: [
             ChangeNotifierProvider(
               create: (_) => FiltersProvider(),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => AuthProvider(
+                isAuthenticated: globalToken != null,
+              ),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => OnboardingProvider(),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => ProfileProvider(),
             ),
           ],
           child: child!,

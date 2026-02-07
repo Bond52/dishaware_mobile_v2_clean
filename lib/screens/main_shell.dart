@@ -4,7 +4,7 @@ import '../theme/da_colors.dart';
 import 'home_screen.dart';
 import 'explorer_screen.dart';
 import 'favorites_screen.dart';
-import 'profile_screen_new.dart';
+import '../features/profile/screens/profile_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -20,7 +20,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     ExplorerScreen(),
     FavoritesScreen(),
-    ProfileScreenNew(),
+    ProfileScreen(),
   ];
 
   @override
