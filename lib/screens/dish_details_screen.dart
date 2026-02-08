@@ -769,6 +769,14 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
       await FavoritesService.toggleFavorite(dishId: dishId);
     } catch (e) {
       debugPrint('❌ Erreur favoris: $e');
+      if (mounted) {
+        favoritesStore.toggleFavorite(dish);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de mettre à jour les favoris.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         favoritesStore.setSending(dishId, false);

@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<RecommendedDish> _recommendations = [];
   bool _isLoadingRecommendations = true;
   final Set<String> _feedbackSending = {};
-  final Set<String> _favoriteSending = {};
 
   @override
   void initState() {
@@ -120,13 +119,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _toggleFavorite(RecommendedDish dish) async {
     final dishId = dish.dishId;
     if (dishId.isEmpty) return;
-    if (_favoriteSending.contains(dishId)) return;
-
     final favoritesStore = context.read<FavoritesStore>();
-    final wasFavorite = favoritesStore.isFavorite(dishId);
+    if (favoritesStore.isSending(dishId)) return;
 
+    final wasFavorite = favoritesStore.isFavorite(dishId);
     favoritesStore.toggleFavorite(dish);
-    setState(() => _favoriteSending.add(dishId));
+    favoritesStore.setSending(dishId, true);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -140,10 +138,16 @@ class _HomeScreenState extends State<HomeScreen> {
       await FavoritesService.toggleFavorite(dishId: dishId);
     } catch (e) {
       debugPrint('❌ Erreur favoris: $e');
-    } finally {
       if (mounted) {
-        setState(() => _favoriteSending.remove(dishId));
+        favoritesStore.toggleFavorite(dish);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de mettre à jour les favoris.'),
+          ),
+        );
       }
+    } finally {
+      if (mounted) favoritesStore.setSending(dishId, false);
     }
   }
 
@@ -377,10 +381,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   .getState(dish.dishId);
               final isLocked = interaction != UserInteractionState.none;
               final isSending = _feedbackSending.contains(dish.dishId);
-              final isFavorite =
-                  context.watch<FavoritesStore>().isFavorite(dish.dishId);
-              final isFavoriteSending =
-                  _favoriteSending.contains(dish.dishId);
+              final favoritesStore = context.watch<FavoritesStore>();
+              final isFavorite = favoritesStore.isFavorite(dish.dishId);
+              final isFavoriteSending = favoritesStore.isSending(dish.dishId);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: RecommendationCard(

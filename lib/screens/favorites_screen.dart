@@ -105,7 +105,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Retrouvez ici tous vos plats préférés pour les commander rapidement',
+              'Ajoutez des plats en favoris pour les retrouver ici.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -125,7 +125,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 border: Border.all(color: const Color(0xFF4CAF50), width: 1),
               ),
               child: const Text(
-                'Cette fonctionnalité sera disponible prochainement',
+                'Aucun favori pour le moment',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -214,6 +214,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       await FavoritesService.toggleFavorite(dishId: dishId);
     } catch (e) {
       debugPrint('❌ Erreur favoris: $e');
+      if (mounted) {
+        favoritesStore.toggleFavorite(dish);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de mettre à jour les favoris.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         favoritesStore.setSending(dishId, false);
