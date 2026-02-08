@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/dish_suggestion.dart';
 import '../api/recipe_service.dart';
 import '../api/order_service.dart';
+import '../services/feedback_service.dart';
 
 class DishDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -162,28 +163,46 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     }
   }
 
-  // 👍 👎 Feedback (mock)
+  // 👍 👎 Feedback (API)
   Future<void> _sendFeedback(bool liked) async {
     if (_sendingFeedback) return;
 
     setState(() => _sendingFeedback = true);
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    final dishId = _dish?.id ?? widget.recipeId;
 
-    if (!mounted) return;
+    try {
+      await FeedbackService.sendFeedback(
+        dishId: dishId,
+        feedbackType: 'concept',
+        liked: liked,
+      );
+      if (!mounted) return;
 
-    setState(() {
-      _liked = liked;
-      _sendingFeedback = false;
-    });
+      setState(() {
+        _liked = liked;
+        _sendingFeedback = false;
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          liked ? "👍 Merci pour votre avis !" : "👎 Avis enregistré",
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Merci ! DishAware apprend ce que vous aimez."),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint("❌ Erreur envoi feedback : $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Action enregistrée localement."),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingFeedback = false);
+      }
+    }
   }
 
   @override

@@ -17,36 +17,69 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<RecommendedDish>> _recommendationsFuture;
+  List<RecommendedDish> _recommendations = [];
+  bool _isLoadingRecommendations = true;
 
   @override
   void initState() {
     super.initState();
-    _recommendationsFuture = RecommendationApi.getRecommendations(limit: 10);
+    _loadRecommendations();
+  }
+
+  Future<void> _loadRecommendations({bool showSnackBar = false}) async {
+    try {
+      final items = await RecommendationApi.getRecommendations(limit: 10);
+      if (!mounted) return;
+      setState(() {
+        _recommendations = items;
+        _isLoadingRecommendations = false;
+      });
+      if (showSnackBar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Suggestions mises à jour selon tes préférences 🌱'),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Erreur chargement recommandations: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRecommendations = false;
+      });
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadRecommendations(showSnackBar: true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Accueil'), elevation: 0),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            _buildGreeting(),
-            const SizedBox(height: 8),
-            _buildSubtitle(),
-            const SizedBox(height: 24),
-            _buildInsightCard(),
-            const SizedBox(height: 16),
-            _buildCaloricObjective(),
-            const SizedBox(height: 16),
-            _buildActionButtons(context),
-            const SizedBox(height: 24),
-            _buildRecommendationsSection(context),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              _buildGreeting(),
+              const SizedBox(height: 8),
+              _buildSubtitle(),
+              const SizedBox(height: 24),
+              _buildInsightCard(),
+              const SizedBox(height: 16),
+              _buildCaloricObjective(),
+              const SizedBox(height: 16),
+              _buildActionButtons(context),
+              const SizedBox(height: 24),
+              _buildRecommendationsSection(context),
+            ],
+          ),
         ),
       ),
     );
@@ -229,34 +262,29 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        FutureBuilder<List<RecommendedDish>>(
-          future: _recommendationsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Text(
-                'Nous apprenons encore vos goûts',
-                style: TextStyle(color: DAColors.mutedForeground),
+        if (_isLoadingRecommendations)
+          const Text(
+            'Nous apprenons encore vos goûts',
+            style: TextStyle(color: DAColors.mutedForeground),
+          )
+        else if (_recommendations.isEmpty)
+          const Text(
+            'Nous apprenons encore vos goûts',
+            style: TextStyle(color: DAColors.mutedForeground),
+          )
+        else
+          ListView.builder(
+            itemCount: _recommendations.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              final dish = _recommendations[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _RecommendationCard(dish: dish),
               );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Text(
-                'Nous apprenons encore vos goûts',
-                style: TextStyle(color: DAColors.mutedForeground),
-              );
-            }
-
-            final recommendations = snapshot.data!;
-            return Column(
-              children: recommendations.map((dish) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _RecommendationCard(dish: dish),
-                );
-              }).toList(),
-            );
-          },
-        ),
+            },
+          ),
       ],
     );
   }
@@ -406,7 +434,7 @@ class _RecommendationCard extends StatelessWidget {
                 bottom: 12,
                 left: 12,
                 child: DABadge(
-                  label: '${_formatScore(dish.compatibilityScore)}% compatible',
+                  label: '${_formatScore(dish.score)}% compatible',
                   variant: DABadgeVariant.success,
                 ),
               ),
@@ -426,14 +454,18 @@ class _RecommendationCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Voir les détails',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: DAColors.mutedForeground,
+                if (dish.explanation.isNotEmpty) ...[
+                  Text(
+                    dish.explanation.first,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: DAColors.mutedForeground,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
