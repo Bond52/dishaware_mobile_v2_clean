@@ -10,6 +10,7 @@ import '../features/recommendations/widgets/recommendation_card.dart';
 import '../features/favorites/providers/favorites_store.dart';
 import '../services/feedback_service.dart';
 import '../services/favorites_service.dart';
+import '../features/menus/widgets/ai_personalized_menu_card.dart';
 import 'nearby_restaurants_screen.dart';
 import 'host_mode_guests_screen.dart';
 import 'dish_details_screen.dart';
@@ -167,7 +168,9 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildGreeting(),
               const SizedBox(height: 8),
               _buildSubtitle(),
-              const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            const AiPersonalizedMenuCard(),
+            const SizedBox(height: 24),
               _buildInsightCard(),
               const SizedBox(height: 16),
               _buildCaloricObjective(),
