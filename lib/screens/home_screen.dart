@@ -11,7 +11,7 @@ import '../features/favorites/providers/favorites_store.dart';
 import '../services/feedback_service.dart';
 import '../services/favorites_service.dart';
 import '../features/menus/widgets/ai_personalized_menu_card.dart';
-import 'nearby_restaurants_screen.dart';
+import 'restaurants_nearby/restaurants_nearby_screen.dart';
 import 'host_mode_guests_screen.dart';
 import 'dish_details_screen.dart';
 
@@ -323,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const NearbyRestaurantsScreen(),
+                  builder: (context) => const RestaurantsNearbyScreen(),
                 ),
               );
             },
