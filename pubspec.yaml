@@ -27,6 +27,7 @@ dependencies:
 
   # ✅ State management (filtres globaux)
   provider: ^6.1.2
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

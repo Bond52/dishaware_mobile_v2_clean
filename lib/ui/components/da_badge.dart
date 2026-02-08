@@ -4,6 +4,7 @@ import '../../theme/da_colors.dart';
 enum DABadgeVariant {
   defaultBadge,
   secondary,
+  success,      // ✅ AJOUT SANS RÉGRESSION
   destructive,
   outline,
 }
@@ -25,19 +26,28 @@ class DABadge extends StatelessWidget {
     BorderSide? border;
 
     switch (variant) {
+      case DABadgeVariant.success:
+        // ✅ SAFE : même rendu que secondary pour l’instant
+        background = DAColors.secondary;
+        foreground = DAColors.secondaryForeground;
+        break;
+
       case DABadgeVariant.secondary:
         background = DAColors.secondary;
         foreground = DAColors.secondaryForeground;
         break;
+
       case DABadgeVariant.destructive:
         background = DAColors.destructive.withOpacity(0.1);
         foreground = DAColors.destructive;
         break;
+
       case DABadgeVariant.outline:
         background = Colors.transparent;
         foreground = DAColors.primary;
         border = const BorderSide(color: DAColors.border);
         break;
+
       case DABadgeVariant.defaultBadge:
       default:
         background = DAColors.muted;
