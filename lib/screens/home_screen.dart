@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../ui/components/da_card.dart';
-import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
 import '../features/recommendations/data/recommendation_api.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
+import '../features/recommendations/providers/user_dish_interactions_store.dart';
+import '../features/recommendations/widgets/recommendation_card.dart';
+import '../features/favorites/providers/favorites_store.dart';
+import '../services/feedback_service.dart';
+import '../services/favorites_service.dart';
 import 'nearby_restaurants_screen.dart';
 import 'host_mode_guests_screen.dart';
 import 'dish_details_screen.dart';
@@ -19,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<RecommendedDish> _recommendations = [];
   bool _isLoadingRecommendations = true;
+  final Set<String> _feedbackSending = {};
+  final Set<String> _favoriteSending = {};
 
   @override
   void initState() {
@@ -52,6 +59,92 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onRefresh() async {
     await _loadRecommendations(showSnackBar: true);
+  }
+
+  Future<void> _sendFeedback({
+    required String dishId,
+    required bool liked,
+  }) async {
+    if (dishId.isEmpty) return;
+    final currentState =
+        context.read<UserDishInteractionsStore>().getState(dishId);
+    if (currentState != UserInteractionState.none ||
+        _feedbackSending.contains(dishId)) {
+      return;
+    }
+
+    setState(() => _feedbackSending.add(dishId));
+
+    try {
+      final response = await FeedbackService.sendScopedFeedback(
+        dishId: dishId,
+        liked: liked,
+        scope: 'dish',
+        source: 'home',
+      );
+      if (!mounted) return;
+
+      final message = response['message']?.toString().toLowerCase() ?? '';
+      final alreadyRecorded = message.contains('déjà');
+      final learningApplied = response['learningApplied'] == true;
+
+      if (learningApplied || alreadyRecorded) {
+        context.read<UserDishInteractionsStore>().setStateForDish(
+              dishId,
+              liked
+                  ? UserInteractionState.liked
+                  : UserInteractionState.disliked,
+            );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              liked
+                  ? 'On affine tes recommandations'
+                  : 'On évitera ce type de plat',
+            ),
+          ),
+        );
+      }
+
+      await _loadRecommendations();
+    } catch (e) {
+      debugPrint('❌ Erreur feedback: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _feedbackSending.remove(dishId));
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite(RecommendedDish dish) async {
+    final dishId = dish.dishId;
+    if (dishId.isEmpty) return;
+    if (_favoriteSending.contains(dishId)) return;
+
+    final favoritesStore = context.read<FavoritesStore>();
+    final wasFavorite = favoritesStore.isFavorite(dishId);
+
+    favoritesStore.toggleFavorite(dish);
+    setState(() => _favoriteSending.add(dishId));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        ),
+      ),
+    );
+
+    try {
+      await FavoritesService.toggleFavorite(dishId: dishId);
+    } catch (e) {
+      debugPrint('❌ Erreur favoris: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _favoriteSending.remove(dishId));
+      }
+    }
   }
 
   @override
@@ -279,9 +372,42 @@ class _HomeScreenState extends State<HomeScreen> {
             physics: const NeverScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               final dish = _recommendations[index];
+              final interaction = context
+                  .watch<UserDishInteractionsStore>()
+                  .getState(dish.dishId);
+              final isLocked = interaction != UserInteractionState.none;
+              final isSending = _feedbackSending.contains(dish.dishId);
+              final isFavorite =
+                  context.watch<FavoritesStore>().isFavorite(dish.dishId);
+              final isFavoriteSending =
+                  _favoriteSending.contains(dish.dishId);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: _RecommendationCard(dish: dish),
+                child: RecommendationCard(
+                  dish: dish,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DishDetailsScreen(dish: dish),
+                      ),
+                    );
+                  },
+                  onToggleFavorite: () => _toggleFavorite(dish),
+                  isFavorite: isFavorite,
+                  isFavoriteSending: isFavoriteSending,
+                  interaction: interaction,
+                  isFeedbackLocked: isLocked,
+                  isFeedbackSending: isSending,
+                  onLike: () => _sendFeedback(
+                    dishId: dish.dishId,
+                    liked: true,
+                  ),
+                  onDislike: () => _sendFeedback(
+                    dishId: dish.dishId,
+                    liked: false,
+                  ),
+                ),
               );
             },
           ),
@@ -348,136 +474,3 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _RecommendationCard extends StatelessWidget {
-  final RecommendedDish dish;
-
-  const _RecommendationCard({required this.dish});
-
-  @override
-  Widget build(BuildContext context) {
-    return DACard(
-      padding: EdgeInsets.zero,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DishDetailsScreen(dish: dish),
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(10),
-                  topRight: Radius.circular(10),
-                ),
-                child: dish.imageUrl.isEmpty
-                    ? Image.asset(
-                        'assets/images/default_image.png',
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.network(
-                        dish.imageUrl,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) {
-                          return Image.asset(
-                            'assets/images/default_image.png',
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        size: 16,
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${dish.calories} kcal',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: DAColors.foreground,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: DABadge(
-                  label: '${_formatScore(dish.score)}% compatible',
-                  variant: DABadgeVariant.success,
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dish.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: DAColors.foreground,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (dish.explanation.isNotEmpty) ...[
-                  Text(
-                    dish.explanation.first,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: DAColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  int _formatScore(double score) {
-    if (score <= 1) {
-      return (score * 100).round();
-    }
-    return score.round();
-  }
-}

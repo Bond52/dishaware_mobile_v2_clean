@@ -172,10 +172,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     final dishId = _dish?.id ?? widget.recipeId;
 
     try {
-      await FeedbackService.sendFeedback(
+      await FeedbackService.sendScopedFeedback(
         dishId: dishId,
-        feedbackType: 'concept',
         liked: liked,
+        scope: 'dish',
+        source: 'details',
       );
       if (!mounted) return;
 

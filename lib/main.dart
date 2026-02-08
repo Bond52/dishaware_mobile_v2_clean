@@ -8,6 +8,8 @@ import 'router.dart';
 import 'features/onboarding/providers/auth_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
+import 'features/recommendations/providers/user_dish_interactions_store.dart';
+import 'features/favorites/providers/favorites_store.dart';
 
 // ✅ AJOUT : thème DishAware
 import 'theme/da_theme.dart';
@@ -61,6 +63,12 @@ class DishAwareApp extends StatelessWidget {
             ),
             ChangeNotifierProvider(
               create: (_) => ProfileProvider(),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => UserDishInteractionsStore(),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => FavoritesStore(),
             ),
           ],
           child: child!,

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
 import '../ui/components/da_card.dart';
 import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
+import '../features/recommendations/providers/user_dish_interactions_store.dart';
 import '../services/feedback_service.dart';
+import '../features/favorites/providers/favorites_store.dart';
+import '../services/favorites_service.dart';
 
 class _PreparationTest {
   final String restaurantName;
@@ -28,8 +32,7 @@ class DishDetailsScreen extends StatefulWidget {
 }
 
 class _DishDetailsScreenState extends State<DishDetailsScreen> {
-  bool? _conceptLiked;
-  bool? _preparationLiked;
+  UserInteractionState _preparationState = UserInteractionState.none;
   bool _sendingConcept = false;
   bool _sendingPreparation = false;
 
@@ -57,11 +60,37 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final dish = widget.dish;
+    final conceptState = context
+        .watch<UserDishInteractionsStore>()
+        .getState(dish?.dishId ?? '');
+    final favoritesStore = context.watch<FavoritesStore>();
+    final dishId = dish?.dishId ?? '';
+    final isFavorite = favoritesStore.isFavorite(dishId);
+    final isFavoriteSending = favoritesStore.isSending(dishId);
     final hasTags =
         (dish?.cuisines.isNotEmpty ?? false) || (dish?.diets.isNotEmpty ?? false);
     final hasWhy = dish?.explanation.isNotEmpty ?? false;
     return Scaffold(
-      appBar: AppBar(title: const Text('Détails du plat'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Détails du plat'),
+        elevation: 0,
+        actions: [
+          if (dish != null)
+            IconButton(
+              onPressed: isFavoriteSending ? null : () => _toggleFavorite(dish),
+              icon: AnimatedScale(
+                duration: const Duration(milliseconds: 160),
+                scale: isFavorite ? 1.1 : 1.0,
+                child: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite
+                      ? const Color(0xFF4CAF50)
+                      : DAColors.mutedForeground,
+                ),
+              ),
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +120,7 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                     subtitle:
                         'Le concept "Bowl Buddha Avocat & Quinoa" en général',
                     feedbackType: 'concept',
-                    likedState: _conceptLiked,
+                    interactionState: conceptState,
                     isSending: _sendingConcept,
                   ),
                   const SizedBox(height: 16),
@@ -99,7 +128,7 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                     title: 'Cette préparation vous plaît ?',
                     subtitle: 'La version de Green Kitchen',
                     feedbackType: 'preparation',
-                    likedState: _preparationLiked,
+                    interactionState: _preparationState,
                     isSending: _sendingPreparation,
                   ),
                   const SizedBox(height: 16),
@@ -468,9 +497,12 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
     required String title,
     required String subtitle,
     required String feedbackType,
-    required bool? likedState,
+    required UserInteractionState interactionState,
     required bool isSending,
   }) {
+    final isLocked = interactionState != UserInteractionState.none;
+    final likeSelected = interactionState == UserInteractionState.liked;
+    final dislikeSelected = interactionState == UserInteractionState.disliked;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -494,62 +526,91 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (likedState == null)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: isSending
-                        ? null
-                        : () => _sendFeedback(
-                              feedbackType: feedbackType,
-                              liked: true,
-                            ),
-                    icon: const Icon(Icons.thumb_up, size: 18),
-                    label: const Text('J\'aime'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: DAColors.foreground,
-                      side: const BorderSide(color: DAColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isLocked || isSending
+                      ? null
+                      : () => _sendFeedback(
+                            feedbackType: feedbackType,
+                            liked: true,
+                          ),
+                  icon: Icon(
+                    Icons.thumb_up,
+                    size: 18,
+                    color: likeSelected ? Colors.green : null,
+                  ),
+                  label: const Text('J\'aime'),
+                  style: ButtonStyle(
+                    foregroundColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) => likeSelected
+                          ? Colors.green
+                          : DAColors.foreground,
+                    ),
+                    backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) =>
+                          likeSelected ? const Color(0xFFE8F5E9) : null,
+                    ),
+                    side: MaterialStateProperty.resolveWith<BorderSide?>(
+                      (states) => BorderSide(
+                        color: likeSelected ? Colors.green : DAColors.border,
+                      ),
+                    ),
+                    padding: MaterialStateProperty.all(
+                      const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: isSending
-                        ? null
-                        : () => _sendFeedback(
-                              feedbackType: feedbackType,
-                              liked: false,
-                            ),
-                    icon: const Icon(Icons.thumb_down, size: 18),
-                    label: const Text('Je n\'aime pas'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: DAColors.foreground,
-                      side: const BorderSide(color: DAColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          else
-            Text(
-              likedState
-                  ? '👍 Merci ! DishAware apprend ce que vous aimez.'
-                  : '👎 Merci ! DishAware apprend ce que vous aimez.',
-              style: const TextStyle(
-                fontStyle: FontStyle.italic,
-                color: DAColors.mutedForeground,
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isLocked || isSending
+                      ? null
+                      : () => _sendFeedback(
+                            feedbackType: feedbackType,
+                            liked: false,
+                          ),
+                  icon: Icon(
+                    Icons.thumb_down,
+                    size: 18,
+                    color: dislikeSelected ? Colors.red : null,
+                  ),
+                  label: const Text('Je n\'aime pas'),
+                  style: ButtonStyle(
+                    foregroundColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) => dislikeSelected
+                          ? Colors.red
+                          : DAColors.foreground,
+                    ),
+                    backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) =>
+                          dislikeSelected ? const Color(0xFFFFEBEE) : null,
+                    ),
+                    side: MaterialStateProperty.resolveWith<BorderSide?>(
+                      (states) => BorderSide(
+                        color: dislikeSelected ? Colors.red : DAColors.border,
+                      ),
+                    ),
+                    padding: MaterialStateProperty.all(
+                      const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -632,33 +693,46 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
     }
 
     try {
-      await FeedbackService.sendFeedback(
+      final response = await FeedbackService.sendScopedFeedback(
         dishId: dishId,
-        feedbackType: feedbackType,
         liked: liked,
+        scope: feedbackType == 'concept' ? 'dish' : 'preparation',
+        source: 'details',
       );
       if (!mounted) return;
-      setState(() {
+
+      final message = response['message']?.toString().toLowerCase() ?? '';
+      final alreadyRecorded = message.contains('déjà');
+      final learningApplied = response['learningApplied'] == true;
+
+      if (learningApplied || alreadyRecorded) {
+        final nextState = liked
+            ? UserInteractionState.liked
+            : UserInteractionState.disliked;
         if (feedbackType == 'concept') {
-          _conceptLiked = liked;
+          context
+              .read<UserDishInteractionsStore>()
+              .setStateForDish(dishId, nextState);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                liked
+                    ? 'On affine tes recommandations'
+                    : 'On évitera ce type de plat',
+              ),
+            ),
+          );
         } else {
-          _preparationLiked = liked;
+          setState(() => _preparationState = nextState);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Avis enregistré pour cette préparation'),
+            ),
+          );
         }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci ! DishAware apprend ce que vous aimez.'),
-        ),
-      );
+      }
     } catch (e) {
       debugPrint('❌ Erreur envoi feedback: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action enregistrée localement.'),
-          ),
-        );
-      }
     } finally {
       if (mounted) {
         setState(() {
@@ -668,6 +742,36 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
             _sendingPreparation = false;
           }
         });
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite(RecommendedDish dish) async {
+    final dishId = dish.dishId;
+    if (dishId.isEmpty) return;
+
+    final favoritesStore = context.read<FavoritesStore>();
+    if (favoritesStore.isSending(dishId)) return;
+
+    final wasFavorite = favoritesStore.isFavorite(dishId);
+    favoritesStore.toggleFavorite(dish);
+    favoritesStore.setSending(dishId, true);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        ),
+      ),
+    );
+
+    try {
+      await FavoritesService.toggleFavorite(dishId: dishId);
+    } catch (e) {
+      debugPrint('❌ Erreur favoris: $e');
+    } finally {
+      if (mounted) {
+        favoritesStore.setSending(dishId, false);
       }
     }
   }
