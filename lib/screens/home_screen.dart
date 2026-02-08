@@ -3,12 +3,27 @@ import 'package:flutter/material.dart';
 import '../ui/components/da_card.dart';
 import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
+import '../features/recommendations/data/recommendation_api.dart';
+import '../features/recommendations/domain/recommended_dish.dart';
 import 'nearby_restaurants_screen.dart';
 import 'host_mode_guests_screen.dart';
 import 'dish_details_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<List<RecommendedDish>> _recommendationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _recommendationsFuture = RecommendationApi.getRecommendations(limit: 10);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,33 +217,6 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildRecommendationsSection(BuildContext context) {
-    final recommendations = [
-      {
-        'name': 'Bowl Buddha Avocat & Quinoa',
-        'restaurant': 'Green Kitchen',
-        'calories': 420,
-        'score': 95,
-        'time': '25 min',
-        'imagePath': 'assets/images/bowl.jpg',
-      },
-      {
-        'name': 'Saumon Grillé, Légumes de Saison',
-        'restaurant': 'Fresh & Co',
-        'calories': 380,
-        'score': 92,
-        'time': '30 min',
-        'imagePath': 'assets/images/salmon.jpg',
-      },
-      {
-        'name': 'Plat du jour',
-        'restaurant': 'Restaurant',
-        'calories': 340,
-        'score': 88,
-        'time': '20 min',
-        'imagePath': 'assets/images/stew.jpg',
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -241,19 +229,34 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        ...recommendations.map((dish) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _RecommendationCard(
-              name: dish['name'] as String,
-              restaurant: dish['restaurant'] as String,
-              calories: dish['calories'] as int,
-              score: dish['score'] as int,
-              time: dish['time'] as String,
-              imagePath: dish['imagePath'] as String,
-            ),
-          );
-        }),
+        FutureBuilder<List<RecommendedDish>>(
+          future: _recommendationsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text(
+                'Nous apprenons encore vos goûts',
+                style: TextStyle(color: DAColors.mutedForeground),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text(
+                'Nous apprenons encore vos goûts',
+                style: TextStyle(color: DAColors.mutedForeground),
+              );
+            }
+
+            final recommendations = snapshot.data!;
+            return Column(
+              children: recommendations.map((dish) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _RecommendationCard(dish: dish),
+                );
+              }).toList(),
+            );
+          },
+        ),
       ],
     );
   }
@@ -318,21 +321,9 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _RecommendationCard extends StatelessWidget {
-  final String name;
-  final String restaurant;
-  final int calories;
-  final int score;
-  final String time;
-  final String imagePath;
+  final RecommendedDish dish;
 
-  const _RecommendationCard({
-    required this.name,
-    required this.restaurant,
-    required this.calories,
-    required this.score,
-    required this.time,
-    required this.imagePath,
-  });
+  const _RecommendationCard({required this.dish});
 
   @override
   Widget build(BuildContext context) {
@@ -342,7 +333,7 @@ class _RecommendationCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const DishDetailsScreen(),
+            builder: (context) => DishDetailsScreen(dish: dish),
           ),
         );
       },
@@ -356,12 +347,27 @@ class _RecommendationCard extends StatelessWidget {
                   topLeft: Radius.circular(10),
                   topRight: Radius.circular(10),
                 ),
-                child: Image.asset(
-                  imagePath,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: dish.imageUrl.isEmpty
+                    ? Image.asset(
+                        'assets/images/default_image.png',
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        dish.imageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return Image.asset(
+                            'assets/images/default_image.png',
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          );
+                        },
+                      ),
               ),
               Positioned(
                 top: 12,
@@ -385,7 +391,7 @@ class _RecommendationCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '$calories kcal',
+                        '${dish.calories} kcal',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -400,7 +406,7 @@ class _RecommendationCard extends StatelessWidget {
                 bottom: 12,
                 left: 12,
                 child: DABadge(
-                  label: '$score% compatible',
+                  label: '${_formatScore(dish.compatibilityScore)}% compatible',
                   variant: DABadgeVariant.success,
                 ),
               ),
@@ -412,7 +418,7 @@ class _RecommendationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  dish.name,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -420,32 +426,13 @@ class _RecommendationCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  restaurant,
-                  style: const TextStyle(
+                const Text(
+                  'Voir les détails',
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
                     color: DAColors.mutedForeground,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: DAColors.mutedForeground,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: DAColors.mutedForeground,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -453,5 +440,12 @@ class _RecommendationCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  int _formatScore(double score) {
+    if (score <= 1) {
+      return (score * 100).round();
+    }
+    return score.round();
   }
 }

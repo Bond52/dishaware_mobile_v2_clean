@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/components/da_card.dart';
 import '../theme/da_colors.dart';
+import '../features/recommendations/domain/recommended_dish.dart';
 
 class _PreparationTest {
   final String restaurantName;
@@ -16,21 +17,22 @@ class _PreparationTest {
 }
 
 class DishDetailsScreen extends StatelessWidget {
-  const DishDetailsScreen({super.key});
+  final RecommendedDish? dish;
 
-  static const String _dishName = 'Bowl Buddha Avocat & Quinoa';
-  static const String _restaurantName = 'Green Kitchen';
-  static const int _calories = 420;
-  static const String _time = '25 min';
-  static const double _rating = 4.8;
-  static const String _description =
+  const DishDetailsScreen({super.key, this.dish});
+
+  static const String _fallbackDishName = 'Bowl Buddha Avocat & Quinoa';
+  static const String _fallbackRestaurantName = 'Green Kitchen';
+  static const int _fallbackCalories = 420;
+  static const String _fallbackTime = '25 min';
+  static const double _fallbackRating = 4.8;
+  static const String _fallbackDescription =
       'Un bowl complet et équilibré avec quinoa bio, avocat frais, pois chiches rôtis, carottes râpées et sauce citron-tahini.';
-  static const int _proteins = 18;
-  static const int _carbs = 45;
-  static const int _fats = 22;
-  static const String _imagePath = 'assets/images/bowl.jpg';
+  static const int _fallbackProteins = 18;
+  static const int _fallbackCarbs = 45;
+  static const int _fallbackFats = 22;
 
-  static const List<String> _ingredients = [
+  static const List<String> _fallbackIngredients = [
     'Quinoa bio (80g)',
     'Avocat (1/2)',
     'Pois chiches rôtis (60g)',
@@ -107,6 +109,10 @@ class DishDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildHeroImage() {
+    final imageUrl = dish?.imageUrl ?? '';
+    final calories = dish?.calories ?? _fallbackCalories;
+    final compatibilityScore = dish?.compatibilityScore;
+
     return Stack(
       children: [
         ClipRRect(
@@ -114,12 +120,27 @@ class DishDetailsScreen extends StatelessWidget {
             bottomLeft: Radius.circular(16),
             bottomRight: Radius.circular(16),
           ),
-          child: Image.asset(
-            _imagePath,
-            width: double.infinity,
-            height: 280,
-            fit: BoxFit.cover,
-          ),
+          child: imageUrl.isEmpty
+              ? Image.asset(
+                  'assets/images/default_image.png',
+                  width: double.infinity,
+                  height: 280,
+                  fit: BoxFit.cover,
+                )
+              : Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 280,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) {
+                    return Image.asset(
+                      'assets/images/default_image.png',
+                      width: double.infinity,
+                      height: 280,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
         ),
         Positioned(
           top: 12,
@@ -140,7 +161,7 @@ class DishDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '$_calories kcal',
+                  '$calories kcal',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -151,16 +172,43 @@ class DishDetailsScreen extends StatelessWidget {
             ),
           ),
         ),
+        if (compatibilityScore != null)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_formatScore(compatibilityScore)}% compatible',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: DAColors.foreground,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildMainInfo() {
+    final dishName = dish?.name ?? _fallbackDishName;
+    final restaurant = (dish?.features['restaurantName'] as String?) ??
+        _fallbackRestaurantName;
+    final time = (dish?.features['time'] as String?) ?? _fallbackTime;
+    final rating = (dish?.features['rating'] as num?)?.toDouble() ??
+        _fallbackRating;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _dishName,
+          dishName,
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w600,
@@ -177,7 +225,7 @@ class DishDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              _time,
+              time,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -188,7 +236,7 @@ class DishDetailsScreen extends StatelessWidget {
             const Icon(Icons.star, size: 16, color: Colors.amber),
             const SizedBox(width: 4),
             Text(
-              _rating.toStringAsFixed(1),
+              rating.toStringAsFixed(1),
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -199,7 +247,7 @@ class DishDetailsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          _restaurantName,
+          restaurant,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w400,
@@ -211,10 +259,12 @@ class DishDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildDescriptionCard() {
+    final description =
+        (dish?.features['description'] as String?) ?? _fallbackDescription;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Text(
-        _description,
+        description,
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
@@ -226,6 +276,11 @@ class DishDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildNutritionalValuesCard() {
+    final nutrition = (dish?.features['nutrition'] as Map<String, dynamic>?) ??
+        {};
+    final proteins = (nutrition['proteins'] ?? _fallbackProteins).toString();
+    final carbs = (nutrition['carbs'] ?? _fallbackCarbs).toString();
+    final fats = (nutrition['fats'] ?? _fallbackFats).toString();
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -244,17 +299,17 @@ class DishDetailsScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _NutritionValue(
-                value: '${_proteins}g',
+                value: '${proteins}g',
                 label: 'Protéines',
                 color: const Color(0xFF4CAF50),
               ),
               _NutritionValue(
-                value: '${_carbs}g',
+                value: '${carbs}g',
                 label: 'Glucides',
                 color: const Color(0xFF2196F3),
               ),
               _NutritionValue(
-                value: '${_fats}g',
+                value: '${fats}g',
                 label: 'Lipides',
                 color: const Color(0xFFD32F2F),
               ),
@@ -266,6 +321,10 @@ class DishDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildIngredientsCard() {
+    final ingredients = (dish?.features['ingredients'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        _fallbackIngredients;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -280,7 +339,7 @@ class DishDetailsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ..._ingredients.map((ingredient) {
+          ...ingredients.map((ingredient) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -386,7 +445,9 @@ class DishDetailsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: connect feedback to tasteLearning endpoint
+                  },
                   icon: const Icon(Icons.thumb_up, size: 18),
                   label: const Text('J\'aime'),
                   style: OutlinedButton.styleFrom(
@@ -402,7 +463,9 @@ class DishDetailsScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: connect feedback to tasteLearning endpoint
+                  },
                   icon: const Icon(Icons.thumb_down, size: 18),
                   label: const Text('Je n\'aime pas'),
                   style: OutlinedButton.styleFrom(
@@ -502,6 +565,11 @@ class DishDetailsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  int _formatScore(double score) {
+    if (score <= 1) return (score * 100).round();
+    return score.round();
   }
 }
 
