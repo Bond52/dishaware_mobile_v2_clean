@@ -161,7 +161,9 @@ class _RestaurantsNearbyScreenState extends State<RestaurantsNearbyScreen>
       itemCount: _restaurants.length,
       itemBuilder: (context, index) {
         final restaurant = _restaurants[index];
-        final isExpanded = restaurant.id == _expandedId;
+        final restaurantKey =
+            restaurant.id.isNotEmpty ? restaurant.id : 'index_$index';
+        final isExpanded = restaurantKey == _expandedId;
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: RestaurantAccordionCard(
@@ -169,7 +171,7 @@ class _RestaurantsNearbyScreenState extends State<RestaurantsNearbyScreen>
             isExpanded: isExpanded,
             onTap: () {
               setState(() {
-                _expandedId = isExpanded ? null : restaurant.id;
+                _expandedId = isExpanded ? null : restaurantKey;
               });
             },
           ),

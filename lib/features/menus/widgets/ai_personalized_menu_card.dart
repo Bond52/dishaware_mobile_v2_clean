@@ -15,15 +15,14 @@ class AiPersonalizedMenuCard extends StatefulWidget {
 class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
     with TickerProviderStateMixin {
   AiMenu? _menu;
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool _hasError = false;
-  bool _isExpanded = true;
+  bool _isExpanded = false;
   bool _isFavorite = false;
 
   @override
   void initState() {
     super.initState();
-    _loadMenu();
   }
 
   Future<void> _loadMenu() async {
@@ -67,13 +66,10 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          AnimatedCrossFade(
+          AnimatedSize(
             duration: const Duration(milliseconds: 220),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: _buildExpandedContent(),
-            secondChild: _buildCollapsedContent(),
+            curve: Curves.easeInOut,
+            child: _isExpanded ? _buildExpandedContent() : _buildCollapsedContent(),
           ),
         ],
       ),
@@ -82,7 +78,7 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
 
   Widget _buildHeader() {
     return InkWell(
-      onTap: () => setState(() => _isExpanded = !_isExpanded),
+      onTap: _toggleExpanded,
       child: Row(
         children: [
           Container(
@@ -144,6 +140,10 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
   }
 
   Widget _buildExpandedContent() {
+    // Lazy-load: only fetch when expanded by user.
+    if (_menu == null && !_isLoading && !_hasError) {
+      _loadMenu();
+    }
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.only(top: 16),
@@ -225,6 +225,10 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
         ],
       ),
     );
+  }
+
+  void _toggleExpanded() {
+    setState(() => _isExpanded = !_isExpanded);
   }
 }
 
