@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
+import 'profile_comparison_screen.dart';
 import 'share_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -93,7 +94,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   );
                 },
-                onCompare: () {},
+                onCompare: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileComparisonScreen(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               const Text(

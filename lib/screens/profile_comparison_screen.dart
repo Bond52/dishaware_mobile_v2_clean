@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../ui/components/da_card.dart';
 import '../theme/da_colors.dart';
+import '../features/profile_comparison/models/profile_comparison_models.dart';
+import '../services/profile_comparison_service.dart';
 
 class _ProfileData {
   final String name;
@@ -28,41 +30,113 @@ class _DivergencePoint {
   const _DivergencePoint({required this.category, required this.description});
 }
 
-class ProfileComparisonScreen extends StatelessWidget {
-  const ProfileComparisonScreen({super.key});
+class ProfileComparisonScreen extends StatefulWidget {
+  final String? userIdA;
+  final String? userIdB;
 
-  static const _marie = _ProfileData(
-    name: 'Marie Dupont',
-    initials: 'MA',
-    color: Color(0xFF4CAF50),
-    allergies: ['Arachides', 'Fruits à coque', 'Crustacés'],
-    preferences: ['Végétarien', 'Méditerranéen', 'Faible en sodium'],
-    flavors: ['Carotte + Citron', 'Quinoa', 'Avocat'],
-  );
+  const ProfileComparisonScreen({super.key, this.userIdA, this.userIdB});
 
-  static const _thomas = _ProfileData(
-    name: 'Thomas Martin',
-    initials: 'TM',
-    color: Color(0xFF2196F3),
-    allergies: ['Lactose'],
-    preferences: ['Riche en protéines', 'Asiatique', 'Épicé'],
-    flavors: ['Poulet', 'Riz', 'Gingembre'],
-  );
+  @override
+  State<ProfileComparisonScreen> createState() =>
+      _ProfileComparisonScreenState();
+}
 
-  static const List<_DivergencePoint> _divergences = [
-    _DivergencePoint(
-      category: 'PRÉFÉRENCE',
-      description:
-          'Marie est végétarienne, Thomas préfère les plats riches en protéines animales',
-    ),
-    _DivergencePoint(
-      category: 'GOÛT',
-      description: 'Marie évite l\'épicé fort, Thomas aime les plats épicés',
-    ),
-  ];
+class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
+  ProfileComparisonResult? _result;
+  bool _isLoading = true;
+  String? _error;
+  String? _resolvedA;
+  String? _resolvedB;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_resolvedA != null || _resolvedB != null) return;
+
+    _resolvedA = widget.userIdA;
+    _resolvedB = widget.userIdB;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _resolvedA ??= args['userIdA']?.toString();
+      _resolvedB ??= args['userIdB']?.toString();
+    }
+
+    if (_resolvedA != null && _resolvedB != null) {
+      _fetchComparison();
+    } else {
+      setState(() {
+        _isLoading = false;
+        _error = 'Identifiants manquants pour la comparaison.';
+      });
+    }
+  }
+
+  Future<void> _fetchComparison() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final result = await ProfileComparisonService.compareProfiles(
+        userIdA: _resolvedA!,
+        userIdB: _resolvedB!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _result = result;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Impossible de charger la comparaison.';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Comparaison de profils',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'Analyse de compatibilité',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+          elevation: 0,
+        ),
+        body: Center(
+          child: Text(
+            _error!,
+            style: const TextStyle(color: DAColors.mutedForeground),
+          ),
+        ),
+      );
+    }
+
+    final viewModel = _buildViewModel();
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -88,19 +162,19 @@ class ProfileComparisonScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildProfileHeaders(),
+            _buildProfileHeaders(viewModel.profileA, viewModel.profileB),
             const SizedBox(height: 24),
-            _buildCompatibilityScore(),
+            _buildCompatibilityScore(viewModel),
             const SizedBox(height: 24),
-            _buildAllergiesSection(),
+            _buildAllergiesSection(viewModel.profileA, viewModel.profileB),
             const SizedBox(height: 24),
-            _buildPreferencesSection(),
+            _buildPreferencesSection(viewModel.profileA, viewModel.profileB),
             const SizedBox(height: 24),
-            _buildDivergencesSection(),
+            _buildDivergencesSection(viewModel.divergences),
             const SizedBox(height: 24),
-            _buildFlavorsSection(),
+            _buildFlavorsSection(viewModel.profileA, viewModel.profileB),
             const SizedBox(height: 24),
-            _buildRecommendationsSection(),
+            _buildRecommendationsSection(viewModel.recommendations),
             const SizedBox(height: 24),
             _buildBottomActions(context),
             const SizedBox(height: 32),
@@ -110,10 +184,52 @@ class ProfileComparisonScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeaders() {
+  _ComparisonViewModel _buildViewModel() {
+    final result = _result!;
+    final userA = result.userA;
+    final userB = result.userB;
+
+    final profileA = _ProfileData(
+      name: userA.firstName.isEmpty ? 'Utilisateur A' : userA.firstName,
+      initials: userA.initials.isEmpty ? 'A' : userA.initials,
+      color: const Color(0xFF4CAF50),
+      allergies: const [],
+      preferences: const [],
+      flavors: const [],
+    );
+    final profileB = _ProfileData(
+      name: userB.firstName.isEmpty ? 'Utilisateur B' : userB.firstName,
+      initials: userB.initials.isEmpty ? 'B' : userB.initials,
+      color: const Color(0xFF2196F3),
+      allergies: const [],
+      preferences: const [],
+      flavors: const [],
+    );
+
+    final divergences = result.divergences
+        .map(
+          (d) => _DivergencePoint(
+            category:
+                d.type.isEmpty ? d.label.toUpperCase() : d.type.toUpperCase(),
+            description: d.description.isEmpty ? d.label : d.description,
+          ),
+        )
+        .toList();
+
+    return _ComparisonViewModel(
+      score: result.score,
+      compatibilityLevel: result.compatibilityLevel,
+      profileA: profileA,
+      profileB: profileB,
+      divergences: divergences,
+      recommendations: result.recommendations,
+    );
+  }
+
+  Widget _buildProfileHeaders(_ProfileData profileA, _ProfileData profileB) {
     return Row(
       children: [
-        Flexible(child: _ProfileHeaderCard(profile: _marie)),
+        Flexible(child: _ProfileHeaderCard(profile: profileA)),
         const SizedBox(width: 12),
         const Icon(
           Icons.compare_arrows,
@@ -121,12 +237,15 @@ class ProfileComparisonScreen extends StatelessWidget {
           color: DAColors.mutedForeground,
         ),
         const SizedBox(width: 12),
-        Flexible(child: _ProfileHeaderCard(profile: _thomas)),
+        Flexible(child: _ProfileHeaderCard(profile: profileB)),
       ],
     );
   }
 
-  Widget _buildCompatibilityScore() {
+  Widget _buildCompatibilityScore(_ComparisonViewModel viewModel) {
+    final scoreText = _formatScore(viewModel.score);
+    final compatibilityText = _compatibilityLabel(viewModel.compatibilityLevel);
+    final description = _compatibilityDescription(viewModel.compatibilityLevel);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,28 +254,28 @@ class ProfileComparisonScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            '68%',
-            style: TextStyle(
+          Text(
+            scoreText,
+            style: const TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.w600,
               color: Color(0xFF9C27B0),
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'compatible',
-            style: TextStyle(
+          Text(
+            compatibilityText,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: DAColors.mutedForeground,
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Compatibilité culinaire modérée. Plusieurs options de menu possibles avec ajustements.',
+          Text(
+            description,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w400,
               color: DAColors.foreground,
@@ -167,7 +286,7 @@ class ProfileComparisonScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAllergiesSection() {
+  Widget _buildAllergiesSection(_ProfileData profileA, _ProfileData profileB) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -183,9 +302,9 @@ class ProfileComparisonScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _AllergyCard(profile: _marie)),
+            Flexible(child: _AllergyCard(profile: profileA)),
             const SizedBox(width: 12),
-            Flexible(child: _AllergyCard(profile: _thomas)),
+            Flexible(child: _AllergyCard(profile: profileB)),
           ],
         ),
         const SizedBox(height: 12),
@@ -220,7 +339,10 @@ class ProfileComparisonScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPreferencesSection() {
+  Widget _buildPreferencesSection(
+    _ProfileData profileA,
+    _ProfileData profileB,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,16 +358,16 @@ class ProfileComparisonScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _PreferenceCard(profile: _marie)),
+            Flexible(child: _PreferenceCard(profile: profileA)),
             const SizedBox(width: 12),
-            Flexible(child: _PreferenceCard(profile: _thomas)),
+            Flexible(child: _PreferenceCard(profile: profileB)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildDivergencesSection() {
+  Widget _buildDivergencesSection(List<_DivergencePoint> divergences) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -258,7 +380,7 @@ class ProfileComparisonScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        ..._divergences.map((divergence) {
+        ...divergences.map((divergence) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: Container(
@@ -307,7 +429,7 @@ class ProfileComparisonScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFlavorsSection() {
+  Widget _buildFlavorsSection(_ProfileData profileA, _ProfileData profileB) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -323,16 +445,16 @@ class ProfileComparisonScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _FlavorCard(profile: _marie)),
+            Flexible(child: _FlavorCard(profile: profileA)),
             const SizedBox(width: 16),
-            Flexible(child: _FlavorCard(profile: _thomas)),
+            Flexible(child: _FlavorCard(profile: profileB)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildRecommendationsSection() {
+  Widget _buildRecommendationsSection(List<String> recommendations) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -368,17 +490,22 @@ class ProfileComparisonScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _RecommendationItem(
-            text: 'Plats végétariens riches en protéines (tofu, légumineuses)',
-          ),
-          const SizedBox(height: 8),
-          _RecommendationItem(
-            text: 'Cuisine méditerranéenne avec option épices à part',
-          ),
-          const SizedBox(height: 8),
-          _RecommendationItem(
-            text: 'Éviter : lactose, arachides, fruits à coque',
-          ),
+          if (recommendations.isEmpty)
+            const Text(
+              'Aucune recommandation disponible pour le moment.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF4CAF50),
+              ),
+            )
+          else
+            ...recommendations.map(
+              (rec) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RecommendationItem(text: rec),
+              ),
+            ),
         ],
       ),
     );
@@ -429,6 +556,55 @@ class ProfileComparisonScreen extends StatelessWidget {
       ],
     );
   }
+
+  String _compatibilityLabel(String level) {
+    switch (level) {
+      case 'low':
+        return 'Faible compatibilité';
+      case 'moderate':
+        return 'Compatibilité modérée';
+      case 'high':
+        return 'Très compatible';
+      default:
+        return 'Compatibilité';
+    }
+  }
+
+  String _compatibilityDescription(String level) {
+    switch (level) {
+      case 'low':
+        return 'Compatibilité culinaire faible. Quelques ajustements seront nécessaires.';
+      case 'moderate':
+        return 'Compatibilité culinaire modérée. Plusieurs options de menu possibles avec ajustements.';
+      case 'high':
+        return 'Très compatible. Beaucoup d’options adaptées dès maintenant.';
+      default:
+        return 'Analyse de compatibilité en cours.';
+    }
+  }
+
+  String _formatScore(double score) {
+    final percent = score <= 1 ? (score * 100).round() : score.round();
+    return '$percent%';
+  }
+}
+
+class _ComparisonViewModel {
+  final double score;
+  final String compatibilityLevel;
+  final _ProfileData profileA;
+  final _ProfileData profileB;
+  final List<_DivergencePoint> divergences;
+  final List<String> recommendations;
+
+  const _ComparisonViewModel({
+    required this.score,
+    required this.compatibilityLevel,
+    required this.profileA,
+    required this.profileB,
+    required this.divergences,
+    required this.recommendations,
+  });
 }
 
 class _ProfileHeaderCard extends StatelessWidget {
