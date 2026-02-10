@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import '../../../router_refresh.dart';
 import '../models/user_profile.dart';
 import '../services/profile_api_service.dart';
@@ -26,6 +27,13 @@ class ProfileProvider extends ChangeNotifier {
       _profile = await ProfileApiService.getMyProfile();
       print('PROFILE LOADED: ${_profile?.hasCompletedOnboarding}');
     } catch (e) {
+      if (e is DioException) {
+        debugPrint(
+          'PROFILE LOAD ERROR: ${e.response?.statusCode} ${e.message} ${e.response?.data}',
+        );
+      } else {
+        debugPrint('PROFILE LOAD ERROR: $e');
+      }
       _error = e.toString();
     } finally {
       _isLoading = false;

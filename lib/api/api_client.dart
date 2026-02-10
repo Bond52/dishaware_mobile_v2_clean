@@ -6,8 +6,8 @@ class ApiClient {
     BaseOptions(
       baseUrl: "http://10.0.2.2:4000/api", // backend local (Android Emulator)
       // baseUrl: "https://dishaware-backend.onrender.com/api", // backend Render (désactivé)
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 20),
       headers: {
         "Content-Type": "application/json",
       },

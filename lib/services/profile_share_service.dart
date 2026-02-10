@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
 import '../features/profile/models/share_target.dart';
 import '../features/profile_comparison/models/received_share_profile.dart';
@@ -33,44 +32,26 @@ class ProfileShareService {
   }
 
   static Future<List<ReceivedShareProfile>> getReceivedShares() async {
-    const paths = [
-      '/profile-shares/received',
+    final response = await ApiClient.dio.get(
       '/profile-shares/received/me',
-      '/profile-shares/received-profiles',
-    ];
-
-    for (final path in paths) {
-      try {
-        final response = await ApiClient.dio.get(
-          path,
-          options: _options(),
-        );
-        final data = response.data;
-        if (data is List) {
-          return data
-              .whereType<Map<String, dynamic>>()
-              .map(ReceivedShareProfile.fromJson)
-              .toList();
-        }
-        if (data is Map<String, dynamic>) {
-          final list = data['items'] ?? data['results'] ?? data['data'];
-          if (list is List) {
-            return list
-                .whereType<Map<String, dynamic>>()
-                .map(ReceivedShareProfile.fromJson)
-                .toList();
-          }
-        }
-        return [];
-      } on DioException catch (e) {
-        if (e.response?.statusCode == 404) {
-          debugPrint('⚠️ Endpoint introuvable: $path');
-          continue;
-        }
-        rethrow;
+      options: _options(),
+    );
+    final data = response.data;
+    if (data is List) {
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(ReceivedShareProfile.fromJson)
+          .toList();
+    }
+    if (data is Map<String, dynamic>) {
+      final list = data['items'] ?? data['results'] ?? data['data'] ?? data['shares'];
+      if (list is List) {
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(ReceivedShareProfile.fromJson)
+            .toList();
       }
     }
-
     return [];
   }
 }
