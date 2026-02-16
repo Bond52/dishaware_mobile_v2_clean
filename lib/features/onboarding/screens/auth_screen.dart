@@ -1,7 +1,25 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../api/api_client.dart';
+import '../../../main.dart';
 import '../providers/auth_provider.dart';
+
+/// Persiste un userId mock (auth_token + currentUserId) pour que les appels API
+/// (ex. createProfile) fonctionnent après l'onboarding, puis navigue.
+Future<void> _persistMockUserIdAndGo(BuildContext context, String route) async {
+  final mockId = 'mock_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(0x7FFFFFFF)}';
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('auth_token', mockId);
+  await prefs.setString('currentUserId', mockId);
+  globalToken = mockId;
+  ApiClient.setToken(mockId);
+  if (context.mounted) context.go(route);
+}
 
 class AuthScreen extends StatelessWidget {
   const AuthScreen({super.key});
@@ -55,9 +73,9 @@ class AuthScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               _AuthOptionCard(
-                onTap: () {
+                onTap: () async {
                   authProvider.authenticate(AuthMethod.google);
-                  context.go('/onboarding/flow');
+                  await _persistMockUserIdAndGo(context, '/onboarding/flow');
                 },
                 leading: _IconTile(
                   background: Colors.white,
@@ -76,9 +94,9 @@ class AuthScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _AuthOptionCard(
-                onTap: () {
+                onTap: () async {
                   authProvider.authenticate(AuthMethod.apple);
-                  context.go('/onboarding/flow');
+                  await _persistMockUserIdAndGo(context, '/onboarding/flow');
                 },
                 leading: _IconTile(
                   background: Colors.black,

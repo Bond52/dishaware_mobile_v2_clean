@@ -1,24 +1,12 @@
-import 'package:dio/dio.dart';
 import '../../../api/api_client.dart';
 import '../domain/recommended_dish.dart';
 
 class RecommendationApi {
-  static const String _mockUserId = '64b7f9c2f5c1f2b3a4c5d6e7';
-
-  static Options _options() {
-    return Options(
-      headers: {
-        ...ApiClient.dio.options.headers,
-        'x-user-id': _mockUserId,
-      },
-    );
-  }
-
   static Future<List<RecommendedDish>> getRecommendations({int limit = 10}) async {
     final response = await ApiClient.dio.get(
       '/recommendations/debug',
       queryParameters: {'limit': limit},
-      options: _options(),
+      options: await ApiClient.optionsWithUserId(),
     );
 
     final data = response.data;

@@ -1,33 +1,21 @@
-import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 
 class FavoritesService {
-  static const String _mockUserId = '64b7f9c2f5c1f2b3a4c5d6e7';
-
-  static Options _options() {
-    return Options(
-      headers: {
-        ...ApiClient.dio.options.headers,
-        'x-user-id': _mockUserId,
-      },
-    );
-  }
-
   static Future<void> toggleFavorite({required String dishId}) async {
     await ApiClient.dio.post(
       '/favorites/toggle',
       data: {
         'dishId': dishId,
       },
-      options: _options(),
+      options: await ApiClient.optionsWithUserId(),
     );
   }
 
   static Future<List<RecommendedDish>> getFavorites() async {
     final response = await ApiClient.dio.get(
       '/favorites',
-      options: _options(),
+      options: await ApiClient.optionsWithUserId(),
     );
     final data = response.data;
 

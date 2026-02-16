@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../../profile/services/profile_api_service.dart';
 import '../../profile/providers/profile_provider.dart';
+import '../../favorites/providers/favorites_store.dart';
 
 class ProfileConfirmationScreen extends StatelessWidget {
   const ProfileConfirmationScreen({super.key});
@@ -62,7 +63,7 @@ class ProfileConfirmationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               const Text(
-                'Profil créé avec succès !',
+                'Votre profil est prêt !',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -158,13 +159,23 @@ class ProfileConfirmationScreen extends StatelessWidget {
                       profileProvider.setProfile(profile);
                       authProvider.completeOnboarding();
                       onboardingProvider.reset();
-                      context.go('/home');
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Erreur lors de la sauvegarde du profil'),
-                        ),
-                      );
+                      await context.read<FavoritesStore>().loadFavorites();
+                      if (context.mounted) context.go('/home');
+                    } catch (e, st) {
+                      debugPrint('Erreur sauvegarde profil: $e');
+                      debugPrint('$st');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              e is Exception && e.toString().contains('UserId')
+                                  ? 'Session invalide. Veuillez vous reconnecter.'
+                                  : 'Erreur lors de la sauvegarde du profil. Réessayez.',
+                            ),
+                            backgroundColor: const Color(0xFFEF4444),
+                          ),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(

@@ -37,4 +37,25 @@ class ApiClient {
   static void clearToken() {
     dio.options.headers.remove("Authorization");
   }
+
+  /// Retourne le userId courant (SharedPreferences). Lance si non initialisé.
+  static Future<String> get currentUserId async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('currentUserId');
+    if (userId == null || userId.isEmpty) {
+      throw Exception('UserId non initialisé (mockAuth)');
+    }
+    return userId;
+  }
+
+  /// Options Dio avec l’en-tête x-user-id du profil connecté (pour favoris, recommandations, etc.).
+  static Future<Options> optionsWithUserId() async {
+    final userId = await currentUserId;
+    return Options(
+      headers: {
+        ...dio.options.headers,
+        'x-user-id': userId,
+      },
+    );
+  }
 }
