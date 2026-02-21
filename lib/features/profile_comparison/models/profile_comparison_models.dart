@@ -36,6 +36,16 @@ class ComparisonUser {
     }
     return const [];
   }
+
+  Map<String, dynamic> toJson() => {
+        'firstName': firstName,
+        'fullName': fullName,
+        'initials': initials,
+        'allergiesLabels': allergiesLabels,
+        'dietsLabels': dietsLabels,
+        'favoriteCuisinesLabels': favoriteCuisinesLabels,
+        'favoriteIngredientsLabels': favoriteIngredientsLabels,
+      };
 }
 
 class BreakdownScores {
@@ -62,6 +72,14 @@ class BreakdownScores {
       flexibility: (json['flexibility'] ?? 0).toDouble(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'safety': safety,
+        'diet': diet,
+        'taste': taste,
+        'behavior': behavior,
+        'flexibility': flexibility,
+      };
 }
 
 class Breakdown {
@@ -83,6 +101,11 @@ class Breakdown {
       ),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'raw': raw.toJson(),
+        'weighted': weighted.toJson(),
+      };
 }
 
 class Divergence {
@@ -103,6 +126,12 @@ class Divergence {
       description: (json['description'] ?? '').toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'label': label,
+        'description': description,
+      };
 }
 
 class ProfileComparisonResult {
@@ -147,4 +176,16 @@ class ProfileComparisonResult {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'score': score,
+        'compatibilityLevel': compatibilityLevel,
+        'users': {
+          'A': userA.toJson(),
+          'B': userB.toJson(),
+        },
+        'breakdown': breakdown.toJson(),
+        'divergences': divergences.map((e) => e.toJson()).toList(),
+        'recommendations': recommendations,
+      };
 }

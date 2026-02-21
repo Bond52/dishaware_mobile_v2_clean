@@ -9,6 +9,9 @@ import '../../profile_comparison/models/profile_comparison_models.dart';
 import '../../profile_comparison/models/received_share_profile.dart';
 import '../providers/profile_provider.dart';
 import '../models/user_profile.dart';
+import 'package:dio/dio.dart';
+import '../services/menu_api_service.dart';
+import 'consensus_menu_screen.dart';
 
 class ProfileComparisonScreen extends StatefulWidget {
   const ProfileComparisonScreen({super.key});
@@ -21,6 +24,7 @@ class ProfileComparisonScreen extends StatefulWidget {
 class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
   bool _isLoading = true;
   bool _isComparing = false;
+  bool _isLoadingConsensus = false;
   String? _error;
   List<ReceivedShareProfile> _sharedProfiles = [];
   ProfileComparisonResult? _result;
@@ -820,22 +824,74 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
   }
 
   Widget _buildPrimaryButton(BuildContext context) {
+    final canGenerate = _result != null && !_isLoadingConsensus;
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: canGenerate ? () => _onConsensusPressed(context) : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4CAF50),
           foregroundColor: Colors.white,
+          disabledBackgroundColor: DAColors.muted,
+          disabledForegroundColor: DAColors.mutedForeground,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text('Voir les plats compatibles'),
+        child: _isLoadingConsensus
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text('Voir les plats compatibles'),
       ),
     );
+  }
+
+  Future<void> _onConsensusPressed(BuildContext context) async {
+    if (_result == null || _isLoadingConsensus) return;
+    setState(() => _isLoadingConsensus = true);
+    try {
+      final comparisonData = _result!.toJson();
+      final menu = await MenuApiService.generateConsensusMenu(comparisonData);
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => ConsensusMenuScreen(menu: menu),
+        ),
+      );
+    } on DioException catch (e) {
+      debugPrint('❌ Erreur menu consensus: $e');
+      if (!context.mounted) return;
+      final is404 = e.response?.statusCode == 404;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            is404
+                ? 'Menu consensus non disponible (endpoint absent). Vérifiez que le backend expose POST /menus/consensus.'
+                : 'Impossible de générer le menu. Réessayez.',
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Erreur menu consensus: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de générer le menu. Réessayez.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingConsensus = false);
+    }
   }
 
   String _compatibilityDescription(String level) {
