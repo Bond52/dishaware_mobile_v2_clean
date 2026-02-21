@@ -1,16 +1,25 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../features/profile/models/share_target.dart';
 import '../features/profile_comparison/models/received_share_profile.dart';
 
 class ProfileShareService {
-  static const String _mockUserId = '64b7f9c2f5c1f2b3a4c5d6e7';
+  static Future<String> _requireUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('currentUserId');
+    if (userId == null || userId.isEmpty) {
+      throw Exception('UserId non initialisé (mockAuth)');
+    }
+    return userId;
+  }
 
-  static Options _options() {
+  static Future<Options> _options() async {
+    final userId = await _requireUserId();
     return Options(
       headers: {
         ...ApiClient.dio.options.headers,
-        'x-user-id': _mockUserId,
+        'x-user-id': userId,
       },
     );
   }
@@ -27,14 +36,14 @@ class ProfileShareService {
         'scope': 'compare',
         'duration': '24h',
       },
-      options: _options(),
+      options: await _options(),
     );
   }
 
   static Future<List<ReceivedShareProfile>> getReceivedShares() async {
     final response = await ApiClient.dio.get(
       '/profile-shares/received/me',
-      options: _options(),
+      options: await _options(),
     );
     final data = response.data;
     if (data is List) {

@@ -1,4 +1,5 @@
 class UserProfile {
+  final String? userId;
   final String firstName;
   final String lastName;
   final int dailyCalories;
@@ -18,6 +19,7 @@ class UserProfile {
   final bool hasCompletedOnboarding;
 
   const UserProfile({
+    this.userId,
     required this.firstName,
     required this.lastName,
     required this.dailyCalories,
@@ -39,6 +41,7 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
+      userId: json['userId']?.toString(),
       firstName: (json['firstName'] ?? '') as String,
       lastName: (json['lastName'] ?? '') as String,
       dailyCalories: (json['dailyCalories'] ?? 2000) as int,
@@ -72,6 +75,7 @@ class UserProfile {
 
   Map<String, dynamic> toJson() {
     return {
+      if (userId != null) 'userId': userId,
       'firstName': firstName,
       'lastName': lastName,
       'dailyCalories': dailyCalories,

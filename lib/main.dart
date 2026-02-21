@@ -24,6 +24,10 @@ void main() async {
 
   if (globalToken != null) {
     ApiClient.setToken(globalToken!);
+    final existingUserId = prefs.getString('currentUserId');
+    if (existingUserId == null || existingUserId.isEmpty) {
+      await prefs.setString('currentUserId', globalToken!);
+    }
   }
 
   runApp(const DishAwareApp());

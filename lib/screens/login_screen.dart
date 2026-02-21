@@ -53,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // 💾 Sauvegarde locale
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString("auth_token", token);
+        await prefs.setString('currentUserId', token);
 
         // 🔥 variable globale (router)
         globalToken = token;
