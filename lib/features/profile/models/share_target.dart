@@ -20,10 +20,20 @@ class ShareTarget {
         typeRaw == 'event' ? ShareTargetType.event : ShareTargetType.user;
     final firstName = (json['firstName'] ?? '').toString();
     final lastName = (json['lastName'] ?? '').toString();
-    final composedName = ('$firstName $lastName').trim();
+    final fullName = (json['fullName'] ?? '').toString();
+    final composedName = fullName.isNotEmpty
+        ? fullName
+        : ('$firstName $lastName').trim();
+    final name = (json['name'] ?? composedName).toString();
+    final idRaw = json['id'] ?? json['_id'] ?? json['userId'];
+    final id = idRaw == null
+        ? ''
+        : (idRaw is Map && idRaw['\$oid'] != null
+            ? ((idRaw['\$oid'] as String?) ?? '')
+            : idRaw.toString());
     return ShareTarget(
-      id: (json['id'] ?? json['_id'] ?? '').toString(),
-      name: (json['name'] ?? composedName).toString(),
+      id: id,
+      name: name.isEmpty ? 'Sans nom' : name,
       type: type,
       subtitle: (json['subtitle'] ??
               json['description'] ??

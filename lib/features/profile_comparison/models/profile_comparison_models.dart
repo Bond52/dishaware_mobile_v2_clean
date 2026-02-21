@@ -1,17 +1,40 @@
 class ComparisonUser {
   final String firstName;
+  final String fullName;
   final String initials;
+  final List<String> allergiesLabels;
+  final List<String> dietsLabels;
+  final List<String> favoriteCuisinesLabels;
+  final List<String> favoriteIngredientsLabels;
 
   const ComparisonUser({
     required this.firstName,
+    this.fullName = '',
     required this.initials,
+    this.allergiesLabels = const [],
+    this.dietsLabels = const [],
+    this.favoriteCuisinesLabels = const [],
+    this.favoriteIngredientsLabels = const [],
   });
 
   factory ComparisonUser.fromJson(Map<String, dynamic> json) {
     return ComparisonUser(
       firstName: (json['firstName'] ?? '').toString(),
+      fullName: (json['fullName'] ?? '').toString(),
       initials: (json['initials'] ?? '').toString(),
+      allergiesLabels: _stringListFromJson(json['allergiesLabels']),
+      dietsLabels: _stringListFromJson(json['dietsLabels']),
+      favoriteCuisinesLabels: _stringListFromJson(json['favoriteCuisinesLabels']),
+      favoriteIngredientsLabels: _stringListFromJson(json['favoriteIngredientsLabels']),
     );
+  }
+
+  static List<String> _stringListFromJson(dynamic value) {
+    if (value == null) return const [];
+    if (value is List) {
+      return value.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    return const [];
   }
 }
 

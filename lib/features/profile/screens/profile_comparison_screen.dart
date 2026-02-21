@@ -221,7 +221,7 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
   Widget _buildProfileHeadersRow(_ProfileData profileA) {
     return Row(
       children: [
-        Flexible(child: _ProfileHeaderCard(profile: profileA)),
+        Expanded(child: _ProfileHeaderCard(profile: profileA)),
         const SizedBox(width: 12),
         const Icon(
           Icons.compare_arrows,
@@ -229,7 +229,7 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
           color: DAColors.mutedForeground,
         ),
         const SizedBox(width: 12),
-        Flexible(
+        Expanded(
           child: _result == null
               ? const _EmptyProfileCard()
               : _ProfileHeaderCard(profile: _buildViewModel().profileB),
@@ -414,30 +414,45 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
     debugPrint('[COMPARE_UI] compatibilityLevel: ${result.compatibilityLevel}');
     debugPrint('[COMPARE_UI] recommandations: ${result.recommendations.length} éléments (source: ${result.recommendations.isEmpty ? "liste vide depuis API" : "API"})');
 
+    final nameA = userA.fullName.isNotEmpty
+        ? userA.fullName
+        : (userA.firstName.isEmpty ? 'Utilisateur A' : userA.firstName);
+    final nameB = userB.fullName.isNotEmpty
+        ? userB.fullName
+        : (userB.firstName.isEmpty ? 'Utilisateur B' : userB.firstName);
     final profileA = _ProfileData(
-      name: userA.firstName.isEmpty ? 'Utilisateur A' : userA.firstName,
+      name: nameA,
       initials: userA.initials.isEmpty ? 'A' : userA.initials,
       color: const Color(0xFF4CAF50),
-      allergies: const [],
-      preferences: const [],
-      flavors: const [],
+      allergies: List<String>.from(userA.allergiesLabels),
+      preferences: List<String>.from(userA.dietsLabels),
+      flavors: [
+        ...userA.favoriteCuisinesLabels,
+        ...userA.favoriteIngredientsLabels,
+      ],
     );
     final profileB = _ProfileData(
-      name: userB.firstName.isEmpty ? 'Utilisateur B' : userB.firstName,
+      name: nameB,
       initials: userB.initials.isEmpty ? 'B' : userB.initials,
       color: const Color(0xFF2196F3),
-      allergies: const [],
-      preferences: const [],
-      flavors: const [],
+      allergies: List<String>.from(userB.allergiesLabels),
+      preferences: List<String>.from(userB.dietsLabels),
+      flavors: [
+        ...userB.favoriteCuisinesLabels,
+        ...userB.favoriteIngredientsLabels,
+      ],
     );
 
     final divergences = result.divergences
         .map(
-          (d) => _DivergencePoint(
-            category:
-                d.type.isEmpty ? d.label.toUpperCase() : d.type.toUpperCase(),
-            description: d.description.isEmpty ? d.label : d.description,
-          ),
+          (d) {
+            final rawCategory =
+                d.type.isEmpty ? d.label : d.type;
+            return _DivergencePoint(
+              category: _divergenceCategoryToFrench(rawCategory),
+              description: d.description.isEmpty ? d.label : d.description,
+            );
+          },
         )
         .toList();
 
@@ -545,9 +560,9 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _AllergyCard(profile: profileA)),
+            Expanded(child: _AllergyCard(profile: profileA)),
             const SizedBox(width: 12),
-            Flexible(child: _AllergyCard(profile: profileB)),
+            Expanded(child: _AllergyCard(profile: profileB)),
           ],
         ),
         const SizedBox(height: 12),
@@ -565,7 +580,7 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
                 color: Color(0xFF4CAF50),
               ),
               const SizedBox(width: 12),
-              Flexible(
+              Expanded(
                 child: Text(
                   isNeutral
                       ? 'Sélectionnez un profil à comparer pour afficher les allergies communes.'
@@ -603,9 +618,9 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _PreferenceCard(profile: profileA)),
+            Expanded(child: _PreferenceCard(profile: profileA)),
             const SizedBox(width: 12),
-            Flexible(child: _PreferenceCard(profile: profileB)),
+            Expanded(child: _PreferenceCard(profile: profileB)),
           ],
         ),
       ],
@@ -691,7 +706,7 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            divergence.category.toUpperCase(),
+                            divergence.category,
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -736,9 +751,9 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Flexible(child: _FlavorCard(profile: profileA)),
-            const SizedBox(width: 16),
-            Flexible(child: _FlavorCard(profile: profileB)),
+            Expanded(child: _FlavorCard(profile: profileA)),
+            const SizedBox(width: 12),
+            Expanded(child: _FlavorCard(profile: profileB)),
           ],
         ),
       ],
@@ -839,6 +854,27 @@ class _ProfileComparisonScreenState extends State<ProfileComparisonScreen> {
   String _formatScore(double score) {
     final percent = score <= 1 ? (score * 100).round() : score.round();
     return '$percent%';
+  }
+
+  /// Traduit le type de divergence API (DIET, TASTE, etc.) en libellé français.
+  static String _divergenceCategoryToFrench(String typeOrLabel) {
+    final key = typeOrLabel.trim().toUpperCase();
+    switch (key) {
+      case 'DIET':
+        return 'RÉGIME';
+      case 'TASTE':
+        return 'GOÛT';
+      case 'BEHAVIOR':
+        return 'COMPORTEMENT';
+      case 'SAFETY':
+        return 'SÉCURITÉ';
+      case 'FLEXIBILITY':
+        return 'FLEXIBILITÉ';
+      default:
+        return typeOrLabel.trim().isEmpty
+            ? typeOrLabel
+            : typeOrLabel.trim().toUpperCase();
+    }
   }
 }
 
@@ -953,6 +989,7 @@ class _AllergyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasItems = profile.allergies.isNotEmpty;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -962,39 +999,49 @@ class _AllergyCard extends StatelessWidget {
             profile.name,
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: DAColors.foreground,
             ),
           ),
           const SizedBox(height: 12),
-          ...profile.allergies.map((allergy) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD32F2F),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      allergy,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: DAColors.foreground,
+          if (!hasItems)
+            Text(
+              'Aucune',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: DAColors.mutedForeground,
+              ),
+            )
+          else
+            ...profile.allergies.map((allergy) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD32F2F),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                    Expanded(
+                      child: Text(
+                        allergy,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: DAColors.foreground,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -1008,6 +1055,7 @@ class _PreferenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasItems = profile.preferences.isNotEmpty;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1017,38 +1065,48 @@ class _PreferenceCard extends StatelessWidget {
             profile.name,
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: DAColors.foreground,
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 6,
-            runSpacing: 8,
-            children: profile.preferences.map((pref) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: profile.color == const Color(0xFF4CAF50)
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: profile.color.withOpacity(0.3)),
-                ),
-                child: Text(
-                  pref,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: profile.color,
+          if (!hasItems)
+            Text(
+              'Aucune',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: DAColors.mutedForeground,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 8,
+              children: profile.preferences.map((pref) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                  decoration: BoxDecoration(
+                    color: profile.color == const Color(0xFF4CAF50)
+                        ? const Color(0xFFE8F5E9)
+                        : const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: profile.color.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    pref,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: profile.color,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -1062,6 +1120,7 @@ class _FlavorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasItems = profile.flavors.isNotEmpty;
     return DACard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1072,38 +1131,48 @@ class _FlavorCard extends StatelessWidget {
             profile.name,
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: DAColors.foreground,
             ),
           ),
           const SizedBox(height: 12),
-          ...profile.flavors.asMap().entries.map((entry) {
-            final isLast = entry.key == profile.flavors.length - 1;
-            return Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(Icons.favorite, size: 16, color: profile.color),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      entry.value,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: DAColors.foreground,
-                        height: 1.4,
+          if (!hasItems)
+            Text(
+              'Aucune',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: DAColors.mutedForeground,
+              ),
+            )
+          else
+            ...profile.flavors.asMap().entries.map((entry) {
+              final isLast = entry.key == profile.flavors.length - 1;
+              return Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(Icons.favorite, size: 16, color: profile.color),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        entry.value,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: DAColors.foreground,
+                          height: 1.4,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
