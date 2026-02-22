@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../api/api_client.dart';
+import '../../../screens/host_mode_models.dart';
 import '../models/consensus_menu.dart';
 
 class MenuApiService {
@@ -28,5 +29,23 @@ class MenuApiService {
     final menu = ConsensusMenu.fromJson(toParse);
     debugPrint('[MENU_CONSENSUS] Mappé: starter=${menu.starter.isEmpty ? "vide" : "ok"}, main=${menu.main.isEmpty ? "vide" : "ok"}, dessert=${menu.dessert.isEmpty ? "vide" : "ok"}, explanation=${menu.explanation.isEmpty ? "vide" : "ok"}');
     return menu;
+  }
+
+  /// Génère un menu consensus pour un groupe. POST /menu/consensus/group
+  /// Body: { "profileIds": [...] }
+  static Future<GroupConsensusMenuResponse> generateGroupConsensusMenu(
+    List<String> profileIds,
+  ) async {
+    final response = await ApiClient.dio.post(
+      '/menu/consensus/group',
+      data: {'profileIds': profileIds},
+      options: await ApiClient.optionsWithUserId(),
+    );
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Réponse menu groupe invalide');
+    }
+    debugPrint('[MENU_GROUP] Clés: ${data.keys.toList()}');
+    return GroupConsensusMenuResponse.fromJson(data);
   }
 }

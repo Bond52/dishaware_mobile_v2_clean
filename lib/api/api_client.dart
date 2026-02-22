@@ -1,5 +1,47 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Intercepteur pour logger les requêtes/réponses API (visible dans la console en debug).
+class _ApiLogInterceptor extends Interceptor {
+  static const int _maxBodyLength = 800;
+
+  static String _truncate(dynamic body) {
+    if (body == null) return 'null';
+    final s = body.toString();
+    return s.length <= _maxBodyLength ? s : '${s.substring(0, _maxBodyLength)}...';
+  }
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    debugPrint('[API] → ${options.method} ${options.uri}');
+    if (options.data != null) {
+      debugPrint('[API]   body: ${_truncate(options.data)}');
+    }
+    if (options.queryParameters.isNotEmpty) {
+      debugPrint('[API]   query: ${options.queryParameters}');
+    }
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    debugPrint('[API] ← ${response.statusCode} ${response.requestOptions.uri}');
+    debugPrint('[API]   response: ${_truncate(response.data)}');
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    debugPrint('[API] ✗ ERROR ${err.requestOptions.method} ${err.requestOptions.uri}');
+    debugPrint('[API]   ${err.type} ${err.message}');
+    if (err.response != null) {
+      debugPrint('[API]   status: ${err.response?.statusCode}');
+      debugPrint('[API]   body: ${_truncate(err.response?.data)}');
+    }
+    handler.next(err);
+  }
+}
 
 class ApiClient {
   static final Dio dio = Dio(
@@ -12,7 +54,7 @@ class ApiClient {
         "Content-Type": "application/json",
       },
     ),
-  );
+  )..interceptors.add(_ApiLogInterceptor());
 
   /// 🔐 Charge le token depuis SharedPreferences et l'injecte dans Dio
   static Future<void> loadToken() async {

@@ -1,10 +1,21 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
+import '../features/profile/services/menu_api_service.dart';
+import '../features/profile/services/profile_api_service.dart';
 import '../theme/da_colors.dart';
 import 'host_mode_menu_screen.dart';
+import 'host_mode_models.dart';
 
 class HostModeAnalysisScreen extends StatelessWidget {
-  const HostModeAnalysisScreen({super.key});
+  const HostModeAnalysisScreen({
+    super.key,
+    required this.selectedProfiles,
+  });
+
+  final List<HostGuestProfile> selectedProfiles;
 
   @override
   Widget build(BuildContext context) {
@@ -28,65 +39,284 @@ class HostModeAnalysisScreen extends StatelessWidget {
         ),
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          _buildStepper(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildGroupSummaryCard(),
-                  const SizedBox(height: 24),
-                  _buildAllergiesSection(),
-                  const SizedBox(height: 24),
-                  _buildPreferencesSection(),
-                  const SizedBox(height: 24),
-                  _buildAttentionPointsSection(),
-                  const SizedBox(height: 24),
-                ],
+      body: _AnalysisBody(selectedProfiles: selectedProfiles),
+    );
+  }
+}
+
+class _AnalysisBody extends StatefulWidget {
+  const _AnalysisBody({required this.selectedProfiles});
+
+  final List<HostGuestProfile> selectedProfiles;
+
+  @override
+  State<_AnalysisBody> createState() => _AnalysisBodyState();
+}
+
+class _AnalysisBodyState extends State<_AnalysisBody> {
+  bool _isGeneratingMenu = false;
+  HostGuestProfile? _hostProfile;
+
+  /// Groupe = hôte + invités (l'hôte est inclus dans l'analyse).
+  List<HostGuestProfile> get _groupProfiles {
+    final list = <HostGuestProfile>[];
+    if (_hostProfile != null) list.add(_hostProfile!);
+    list.addAll(widget.selectedProfiles);
+    return list;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHostProfile();
+  }
+
+  Future<void> _loadHostProfile() async {
+    try {
+      final profile = await ProfileApiService.getMyProfile();
+      if (!mounted) return;
+      final fullName = '${profile.firstName} ${profile.lastName}'.trim();
+      final initials = fullName.isEmpty
+          ? 'U'
+          : fullName.length == 1
+              ? fullName[0].toUpperCase()
+              : '${profile.firstName.isNotEmpty ? profile.firstName[0] : ''}${profile.lastName.isNotEmpty ? profile.lastName[0] : ''}'.toUpperCase();
+      final diets = [...profile.diets, ...profile.favoriteCuisines].toSet().toList();
+      debugPrint('[HOST_ANALYSE] Hôte chargé: allergies=${profile.allergies.length} (${profile.allergies}), régimes/cuisines=${diets.length} ($diets)');
+      setState(() {
+        _hostProfile = HostGuestProfile(
+          userId: profile.userId ?? '',
+          profileId: profile.id,
+          fullName: fullName.isEmpty ? 'Vous' : fullName,
+          initials: initials,
+          allergies: profile.allergies,
+          diets: diets,
+        );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      String hostUserId = '';
+      try {
+        hostUserId = await ApiClient.currentUserId;
+      } catch (_) {}
+      debugPrint('[HOST_ANALYSE] Hôte non chargé (getMyProfile en erreur), fallback userId=$hostUserId');
+      setState(() {
+        _hostProfile = HostGuestProfile(
+          userId: hostUserId,
+          fullName: 'Vous',
+          initials: 'V',
+          allergies: const [],
+          diets: const [],
+        );
+      });
+    }
+  }
+
+  List<String> _allergiesUnion() {
+    final Set<String> union = {};
+    for (final p in _groupProfiles) {
+      union.addAll(p.allergies);
+    }
+    return union.toList();
+  }
+
+  List<String> _commonPreferences() {
+    if (_groupProfiles.isEmpty) return [];
+    Set<String> inter = _groupProfiles.first.diets.toSet();
+    for (final p in _groupProfiles.skip(1)) {
+      inter = inter.intersection(p.diets.toSet());
+    }
+    return inter.toList();
+  }
+
+  int _vegetarianCount() {
+    const vegKeywords = ['végétarien', 'vegetarien', 'vegan', 'végan'];
+    return _groupProfiles.where((p) {
+      final d = p.diets.map((e) => e.toLowerCase()).toList();
+      return vegKeywords.any((k) => d.any((x) => x.contains(k)));
+    }).length;
+  }
+
+  List<String> _attentionPoints() {
+    final points = <String>[];
+    final allergies = _allergiesUnion();
+    if (allergies.length > 1) {
+      points.add('Plusieurs allergies à considérer');
+    }
+    final total = _groupProfiles.length;
+    final vegCount = _vegetarianCount();
+    if (vegCount > 0 && vegCount < total) {
+      points.add('$vegCount/$total personnes végétariennes');
+    }
+    final common = _commonPreferences();
+    final hasVaried = _groupProfiles.any((p) =>
+        p.diets.isNotEmpty && common.isEmpty);
+    if (hasVaried || _groupProfiles.any((p) => p.diets.isNotEmpty)) {
+      if (common.isEmpty && total > 1) {
+        points.add('Préférences de cuisine variées');
+      }
+    }
+    if (points.isEmpty) {
+      points.add('Aucun point particulier');
+    }
+    return points;
+  }
+
+  Future<void> _onGenerateMenu() async {
+    if (_isGeneratingMenu) return;
+    setState(() => _isGeneratingMenu = true);
+    final profileIds = _groupProfiles
+        .map((p) => p.profileId ?? p.userId)
+        .where((id) => id.isNotEmpty)
+        .toList();
+    debugPrint('[HOST_ANALYSE] POST menu/consensus/group profileIds: $profileIds');
+    try {
+      final response =
+          await MenuApiService.generateGroupConsensusMenu(profileIds);
+      if (!mounted) return;
+      setState(() => _isGeneratingMenu = false);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) => HostModeMenuScreen(
+            selectedProfiles: widget.selectedProfiles,
+            menuResponse: response,
+          ),
+        ),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 400 &&
+          profileIds.length > 1 &&
+          _hostProfile?.profileId != null &&
+          _hostProfile!.profileId!.isNotEmpty) {
+        try {
+          final fallbackResponse = await MenuApiService.generateGroupConsensusMenu(
+            [_hostProfile!.profileId!],
+          );
+          if (!mounted) return;
+          setState(() => _isGeneratingMenu = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Menu généré pour votre profil. Le serveur n\'a pas reconnu les profils invités.',
+              ),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute<void>(
+              builder: (context) => HostModeMenuScreen(
+                selectedProfiles: widget.selectedProfiles,
+                menuResponse: fallbackResponse,
               ),
             ),
-          ),
-          Container(
+          );
+          return;
+        } catch (_) {
+          if (!mounted) return;
+        }
+      }
+      setState(() => _isGeneratingMenu = false);
+      String message = 'Impossible de générer le menu.';
+      if (statusCode == 404) {
+        message =
+            'Endpoint menu groupe non disponible (POST /menu/consensus/group).';
+      } else if (statusCode == 400) {
+        message =
+            'Le serveur n\'a pas reconnu un ou plusieurs profils (IDs invalides). '
+            'Le backend doit accepter les profileIds envoyés.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isGeneratingMenu = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de générer le menu. Réessayez.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allergies = _allergiesUnion();
+    final commonPrefs = _commonPreferences();
+    final attentionPoints = _attentionPoints();
+    final participantCount = _groupProfiles.length;
+    debugPrint('[HOST_ANALYSE] Groupe: $participantCount participants, allergies=$allergies, préférences communes=$commonPrefs');
+
+    return Column(
+      children: [
+        _buildStepper(),
+        Expanded(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildGroupSummaryCard(
+                  participantCount: participantCount,
+                  allergiesCount: allergies.length,
+                  commonCount: commonPrefs.length,
                 ),
+                const SizedBox(height: 24),
+                _buildAllergiesSection(allergies),
+                const SizedBox(height: 24),
+                _buildPreferencesSection(commonPrefs),
+                const SizedBox(height: 24),
+                _buildAttentionPointsSection(attentionPoints),
+                const SizedBox(height: 24),
               ],
             ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HostModeMenuScreen(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text('Générer le menu'),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
               ),
+            ],
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _isGeneratingMenu ? null : _onGenerateMenu,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFE0E0E0),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: _isGeneratingMenu
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Générer le menu'),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -137,7 +367,11 @@ class HostModeAnalysisScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupSummaryCard() {
+  Widget _buildGroupSummaryCard({
+    required int participantCount,
+    required int allergiesCount,
+    required int commonCount,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -159,10 +393,10 @@ class HostModeAnalysisScreen extends StatelessWidget {
                 child: const Icon(Icons.people, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Résumé du groupe',
                     style: TextStyle(
                       fontSize: 18,
@@ -171,8 +405,10 @@ class HostModeAnalysisScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '3 invités',
-                    style: TextStyle(
+                    participantCount <= 1
+                        ? '$participantCount participant'
+                        : '$participantCount participants',
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: DAColors.mutedForeground,
@@ -187,7 +423,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatBox(
-                  value: '3',
+                  value: '$allergiesCount',
                   label: 'Allergies',
                   color: const Color(0xFFD32F2F),
                 ),
@@ -195,7 +431,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatBox(
-                  value: '1',
+                  value: '$commonCount',
                   label: 'Préférence commune',
                   color: const Color(0xFF4CAF50),
                 ),
@@ -203,7 +439,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatBox(
-                  value: '8',
+                  value: '—',
                   label: 'Plats compatibles',
                   color: const Color(0xFF2196F3),
                 ),
@@ -215,7 +451,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAllergiesSection() {
+  Widget _buildAllergiesSection(List<String> allergies) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -238,20 +474,28 @@ class HostModeAnalysisScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _PillTag(label: 'Arachides', color: const Color(0xFFD32F2F)),
-            _PillTag(label: 'Fruits à coque', color: const Color(0xFFD32F2F)),
-            _PillTag(label: 'Lactose', color: const Color(0xFFD32F2F)),
-          ],
-        ),
+        allergies.isEmpty
+            ? Text(
+                'Aucune allergie',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: DAColors.mutedForeground,
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...allergies.map((l) =>
+                      _PillTag(label: l, color: const Color(0xFFD32F2F))),
+                ],
+              ),
       ],
     );
   }
 
-  Widget _buildPreferencesSection() {
+  Widget _buildPreferencesSection(List<String> commonPrefs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -270,18 +514,28 @@ class HostModeAnalysisScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _PillTag(label: 'Végétarien', color: const Color(0xFF4CAF50)),
-          ],
-        ),
+        commonPrefs.isEmpty
+            ? Text(
+                'Aucune préférence commune',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: DAColors.mutedForeground,
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...commonPrefs.map((l) =>
+                      _PillTag(label: l, color: const Color(0xFF4CAF50))),
+                ],
+              ),
       ],
     );
   }
 
-  Widget _buildAttentionPointsSection() {
+  Widget _buildAttentionPointsSection(List<String> points) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -300,9 +554,7 @@ class HostModeAnalysisScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _AttentionPoint(text: '2/3 personnes végétariennes'),
-          _AttentionPoint(text: 'Plusieurs allergies à considérer'),
-          _AttentionPoint(text: 'Préférences de cuisine variées'),
+          ...points.map((text) => _AttentionPoint(text: text)),
         ],
       ),
     );

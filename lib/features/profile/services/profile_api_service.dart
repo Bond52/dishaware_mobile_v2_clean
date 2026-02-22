@@ -64,4 +64,30 @@ class ProfileApiService {
     );
     return UserProfile.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// Récupère le profil d'un utilisateur par son id (pour Mode Hôte, profils partagés).
+  /// Essaie GET /profiles/:userId puis GET /profile/:userId en fallback.
+  static Future<UserProfile?> getProfileByUserId(String userId) async {
+    try {
+      final response = await ApiClient.dio.get(
+        '/profiles/$userId',
+        options: await _options(),
+      );
+      return UserProfile.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        try {
+          final response = await ApiClient.dio.get(
+            '/profile/$userId',
+            options: await _options(),
+          );
+          return UserProfile.fromJson(response.data as Map<String, dynamic>);
+        } on DioException catch (e2) {
+          if (e2.response?.statusCode == 404) return null;
+          rethrow;
+        }
+      }
+      rethrow;
+    }
+  }
 }

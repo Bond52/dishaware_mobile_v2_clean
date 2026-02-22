@@ -1,4 +1,6 @@
 class UserProfile {
+  /// Id du document profil en base (MongoDB _id). Utilisé pour les APIs qui attendent un profileId.
+  final String? id;
   final String? userId;
   final String firstName;
   final String lastName;
@@ -19,6 +21,7 @@ class UserProfile {
   final bool hasCompletedOnboarding;
 
   const UserProfile({
+    this.id,
     this.userId,
     required this.firstName,
     required this.lastName,
@@ -75,6 +78,7 @@ class UserProfile {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) '_id': id,
       if (userId != null) 'userId': userId,
       'firstName': firstName,
       'lastName': lastName,

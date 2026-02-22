@@ -1,64 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../theme/da_colors.dart';
-
-class _DishItem {
-  final String title;
-  final int calories;
-  final int compatibility;
-  final String imagePath;
-  final List<String> notes;
-  final List<String> warningNotes;
-
-  const _DishItem({
-    required this.title,
-    required this.calories,
-    required this.compatibility,
-    required this.imagePath,
-    required this.notes,
-    this.warningNotes = const [],
-  });
-}
+import 'host_mode_models.dart';
 
 class HostModeMenuScreen extends StatelessWidget {
-  const HostModeMenuScreen({super.key});
+  const HostModeMenuScreen({
+    super.key,
+    required this.selectedProfiles,
+    required this.menuResponse,
+  });
 
-  static const List<_DishItem> _dishes = [
-    _DishItem(
-      title: 'Bowl Méditerranéen au Quinoa',
-      calories: 420,
-      compatibility: 100,
-      imagePath: 'assets/images/bowl.jpg',
-      notes: [
-        'Sans allergènes pour tous',
-        'Végétarien (Marie & Sophie)',
-        'Sans gluten naturellement (Sophie)',
-        'Protéines équilibrées (Thomas)',
-      ],
-    ),
-    _DishItem(
-      title: 'Légumes Grillés, Sauce Tahini',
-      calories: 280,
-      compatibility: 100,
-      imagePath: 'assets/images/bowl.jpg',
-      notes: [
-        'Convient à tous les régimes',
-        'Sans lactose (Thomas)',
-        'Végétarien (Marie & Sophie)',
-      ],
-    ),
-    _DishItem(
-      title: 'Poulet Rôti aux Herbes',
-      calories: 380,
-      compatibility: 67,
-      imagePath: 'assets/images/salmon.jpg',
-      notes: ['Sans allergènes', 'Riche en protéines (Thomas)'],
-      warningNotes: ['Pas végétarien (compromis pour Marie & Sophie)'],
-    ),
-  ];
+  final List<HostGuestProfile> selectedProfiles;
+  final GroupConsensusMenuResponse menuResponse;
 
   @override
   Widget build(BuildContext context) {
+    final dishes = menuResponse.dishes;
+    final count = dishes.length;
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -88,9 +47,9 @@ class HostModeMenuScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMenuGeneratedCard(),
+                  _buildMenuGeneratedCard(platCount: count),
                   const SizedBox(height: 24),
-                  ..._dishes.map((dish) {
+                  ...dishes.map((dish) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: _DishCard(dish: dish),
@@ -154,11 +113,11 @@ class HostModeMenuScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuGeneratedCard() {
+  Widget _buildMenuGeneratedCard({required int platCount}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
+        color: const Color(0xFF4CAF50),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -167,7 +126,7 @@ class HostModeMenuScreen extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50),
+              color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -177,24 +136,24 @@ class HostModeMenuScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Menu généré',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: DAColors.foreground,
+                    color: Colors.white,
                   ),
                 ),
                 Text(
-                  '3 plats compatibles avec votre groupe',
+                  '$platCount plat${platCount > 1 ? 's' : ''} compatible${platCount > 1 ? 's' : ''} avec votre groupe',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: DAColors.mutedForeground,
+                    color: Colors.white.withOpacity(0.9),
                   ),
                 ),
               ],
@@ -203,6 +162,10 @@ class HostModeMenuScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _onModifyGroup(BuildContext context) {
+    Navigator.of(context).pop();
   }
 
   Widget _buildBottomActions(BuildContext context) {
@@ -222,9 +185,7 @@ class HostModeMenuScreen extends StatelessWidget {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => _onModifyGroup(context),
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF4CAF50),
@@ -318,13 +279,13 @@ class _StepIndicator extends StatelessWidget {
 }
 
 class _DishCard extends StatelessWidget {
-  final _DishItem dish;
+  final GroupConsensusDish dish;
 
   const _DishCard({required this.dish});
 
   @override
   Widget build(BuildContext context) {
-    final compatibilityColor = dish.compatibility == 100
+    final compatibilityColor = dish.compatibilityPercent == 100
         ? const Color(0xFF4CAF50)
         : const Color(0xFFFFC107);
 
@@ -350,12 +311,15 @@ class _DishCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  dish.imagePath,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                ),
+                child: dish.imageUrl != null && dish.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        dish.imageUrl!,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholderImage(),
+                      )
+                    : _placeholderImage(),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -363,7 +327,7 @@ class _DishCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      dish.title,
+                      dish.name,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -405,7 +369,7 @@ class _DishCard extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '${dish.compatibility}%',
+                  '${dish.compatibilityPercent}%',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -416,51 +380,31 @@ class _DishCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...dish.notes.map((note) {
+          ...dish.criteria.map((c) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.check_circle,
+                  Icon(
+                    c.isWarning
+                        ? Icons.warning_amber_rounded
+                        : Icons.check_circle,
                     size: 16,
-                    color: Color(0xFF4CAF50),
+                    color: c.isWarning
+                        ? const Color(0xFFFFC107)
+                        : const Color(0xFF4CAF50),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      note,
-                      style: const TextStyle(
+                      c.text,
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
-                        color: DAColors.foreground,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          ...dish.warningNotes.map((note) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 16,
-                    color: Color(0xFFFFC107),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      note,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: DAColors.foreground,
+                        color: c.isWarning
+                            ? const Color(0xFFE65100)
+                            : DAColors.foreground,
                       ),
                     ),
                   ),
@@ -470,6 +414,15 @@ class _DishCard extends StatelessWidget {
           }),
         ],
       ),
+    );
+  }
+
+  Widget _placeholderImage() {
+    return Container(
+      width: 80,
+      height: 80,
+      color: DAColors.muted,
+      child: const Icon(Icons.restaurant, color: DAColors.mutedForeground),
     );
   }
 }
