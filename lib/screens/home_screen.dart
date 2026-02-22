@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -58,7 +59,43 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await _loadRecommendations(showSnackBar: true);
+    if (kDebugMode) {
+      debugPrint('[HOME_REFRESH] Fetching new recommendations');
+    }
+    setState(() {
+      _recommendations = [];
+      _isLoadingRecommendations = true;
+    });
+    try {
+      final items = await RecommendationApi.getRecommendations(
+        limit: 10,
+        forceRefresh: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _recommendations = items;
+        _isLoadingRecommendations = false;
+      });
+      if (kDebugMode) {
+        debugPrint('[HOME_REFRESH] Received ${items.length} new dishes');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Suggestions mises à jour selon tes préférences 🌱'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Erreur refresh recommandations: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRecommendations = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de rafraîchir les suggestions. Réessayez.'),
+        ),
+      );
+    }
   }
 
   Future<void> _sendFeedback({

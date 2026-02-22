@@ -2,10 +2,17 @@ import '../../../api/api_client.dart';
 import '../domain/recommended_dish.dart';
 
 class RecommendationApi {
-  static Future<List<RecommendedDish>> getRecommendations({int limit = 10}) async {
+  static Future<List<RecommendedDish>> getRecommendations({
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
+    final queryParams = <String, dynamic>{'limit': limit};
+    if (forceRefresh) {
+      queryParams['_t'] = DateTime.now().millisecondsSinceEpoch;
+    }
     final response = await ApiClient.dio.get(
       '/recommendations/debug',
-      queryParameters: {'limit': limit},
+      queryParameters: queryParams,
       options: await ApiClient.optionsWithUserId(),
     );
 
