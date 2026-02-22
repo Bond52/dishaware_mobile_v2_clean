@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../features/profile/models/user_profile.dart';
-import '../features/profile/services/profile_api_service.dart';
 import '../services/profile_share_service.dart';
+import '../utils/translate_value.dart';
 import '../theme/da_colors.dart';
 import '../ui/components/da_card.dart';
 import 'host_mode_analysis_screen.dart';
@@ -18,27 +17,18 @@ class HostModeGuestsScreen extends StatefulWidget {
 class _HostModeGuestsScreenState extends State<HostModeGuestsScreen> {
   List<HostGuestProfile> _selectedProfiles = [];
 
+  /// Charge les profils partagés depuis GET /profile-shares/received/me (données enrichies, pas d'appel GET /profiles/:id).
   Future<List<HostGuestProfile>> _loadAvailableProfiles() async {
-    final received = await ProfileShareService.getReceivedShares();
-    final List<HostGuestProfile> result = [];
-    for (final r in received) {
-      UserProfile? full;
-      try {
-        full = await ProfileApiService.getProfileByUserId(r.userId);
-      } catch (_) {}
-      final allergies = full?.allergies ?? [];
-      final diets = full?.diets ?? [];
-      final cuisines = full?.favoriteCuisines ?? [];
-      result.add(HostGuestProfile(
-        userId: r.userId,
-        fullName: r.firstName,
-        initials: r.initials,
-        allergies: allergies,
-        diets: diets,
-        favoriteCuisines: cuisines,
-      ));
-    }
-    return result;
+    final sharedProfiles = await ProfileShareService.getReceivedShares();
+    return sharedProfiles.map((r) => HostGuestProfile(
+      userId: r.userId,
+      profileId: r.profileId,
+      fullName: r.firstName,
+      initials: r.initials,
+      allergies: r.allergies,
+      diets: r.diets,
+      favoriteCuisines: r.favoriteCuisines,
+    )).toList();
   }
 
   void _onAddGuests() async {
@@ -385,7 +375,7 @@ class _AddGuestsSheetState extends State<_AddGuestsSheet> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          p.allergies.join(', '),
+                                          p.allergies.map(translateValue).join(', '),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xFFD32F2F),
@@ -406,7 +396,7 @@ class _AddGuestsSheetState extends State<_AddGuestsSheet> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          p.diets.join(', '),
+                                          p.diets.map(translateValue).join(', '),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xFF4CAF50),
@@ -580,7 +570,7 @@ class _GuestCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          allergies.join(', '),
+                          allergies.map(translateValue).join(', '),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
@@ -604,7 +594,7 @@ class _GuestCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          preferences.join(', '),
+                          preferences.map(translateValue).join(', '),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,

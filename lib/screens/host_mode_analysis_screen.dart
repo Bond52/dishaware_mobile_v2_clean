@@ -6,6 +6,7 @@ import '../api/api_client.dart';
 import '../features/profile/services/menu_api_service.dart';
 import '../features/profile/services/profile_api_service.dart';
 import '../theme/da_colors.dart';
+import '../utils/translate_value.dart';
 import 'host_mode_menu_screen.dart';
 import 'host_mode_models.dart';
 
@@ -113,34 +114,32 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     }
   }
 
-  /// Union de toutes les allergies de chaque profil.
+  /// A. Union de toutes les allergies.
   List<String> _allergiesUnion() {
-    final allAllergies = _groupProfiles
+    final participants = _groupProfiles;
+    return participants
         .expand((p) => p.allergies)
         .where((s) => s.trim().isNotEmpty)
         .toSet()
         .toList();
-    return allAllergies;
   }
 
-  /// Intersection des régimes + intersection des cuisines (préférences communes).
-  List<String> _commonPreferences() {
-    final profiles = _groupProfiles;
-    if (profiles.isEmpty) return [];
-    final commonDiets = _intersection(profiles.map((p) => p.diets).toList());
-    final commonCuisines = _intersection(profiles.map((p) => p.favoriteCuisines).toList());
-    final combined = <String>[...commonDiets, ...commonCuisines];
-    return combined.toSet().toList();
+  /// B. Union de toutes les contraintes alimentaires (diets).
+  List<String> _allDietsUnion() {
+    final participants = _groupProfiles;
+    return participants
+        .expand((p) => p.diets)
+        .where((s) => s.trim().isNotEmpty)
+        .toSet()
+        .toList();
   }
 
-  static List<String> _intersection(List<List<String>> lists) {
-    final nonEmpty = lists.where((l) => l.isNotEmpty).toList();
-    if (nonEmpty.isEmpty) return [];
-    Set<String> inter = nonEmpty.first.toSet();
-    for (final list in nonEmpty.skip(1)) {
-      inter = inter.intersection(list.toSet());
-    }
-    return inter.toList();
+  /// C. Intersection des favoriteCuisines uniquement (préférences communes).
+  List<String> _commonCuisinesOnly() {
+    final participants = _groupProfiles;
+    if (participants.isEmpty) return [];
+    final lists = participants.map((p) => p.favoriteCuisines).toList();
+    return lists.reduce((a, b) => a.where((c) => b.contains(c)).toList());
   }
 
   int _vegetarianCount() {
@@ -162,13 +161,9 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     if (vegCount > 0 && vegCount < total) {
       points.add('$vegCount/$total personnes végétariennes');
     }
-    final common = _commonPreferences();
-    final hasVaried = _groupProfiles.any((p) =>
-        p.diets.isNotEmpty && common.isEmpty);
-    if (hasVaried || _groupProfiles.any((p) => p.diets.isNotEmpty)) {
-      if (common.isEmpty && total > 1) {
-        points.add('Préférences de cuisine variées');
-      }
+    final commonCuisines = _commonCuisinesOnly();
+    if (commonCuisines.isEmpty && total > 1 && _groupProfiles.any((p) => p.favoriteCuisines.isNotEmpty)) {
+      points.add('Préférences de cuisine variées');
     }
     if (points.isEmpty) {
       points.add('Aucun point particulier');
@@ -260,15 +255,15 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
 
   @override
   Widget build(BuildContext context) {
-    final profiles = _groupProfiles;
-    final participantCount = profiles.length;
-    final allergies = _allergiesUnion();
-    final commonPrefs = _commonPreferences();
-    final commonCuisines = _intersection(profiles.map((p) => p.favoriteCuisines).toList());
+    final participants = _groupProfiles;
+    final participantCount = participants.length;
+    final allAllergies = _allergiesUnion();
+    final allDiets = _allDietsUnion();
+    final commonCuisines = _commonCuisinesOnly();
     final attentionPoints = _attentionPoints();
 
-    debugPrint('[ANALYSE_GROUP] participants: $participantCount');
-    debugPrint('[ANALYSE_GROUP] allergies: $allergies');
+    debugPrint('[ANALYSE_GROUP] allergies: $allAllergies');
+    debugPrint('[ANALYSE_GROUP] diets: $allDiets');
     debugPrint('[ANALYSE_GROUP] commonCuisines: $commonCuisines');
 
     return Column(
@@ -282,13 +277,16 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
               children: [
                 _buildGroupSummaryCard(
                   participantCount: participantCount,
-                  allergiesCount: allergies.length,
-                  commonCount: commonPrefs.length,
+                  allergiesCount: allAllergies.length,
+                  dietsCount: allDiets.length,
+                  commonCuisinesCount: commonCuisines.length,
                 ),
                 const SizedBox(height: 24),
-                _buildAllergiesSection(allergies),
+                _buildAllergiesSection(allAllergies),
                 const SizedBox(height: 24),
-                _buildPreferencesSection(commonPrefs),
+                _buildDietsSection(allDiets),
+                const SizedBox(height: 24),
+                _buildPreferencesSection(commonCuisines),
                 const SizedBox(height: 24),
                 _buildAttentionPointsSection(attentionPoints),
                 const SizedBox(height: 24),
@@ -389,7 +387,8 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
   Widget _buildGroupSummaryCard({
     required int participantCount,
     required int allergiesCount,
-    required int commonCount,
+    required int dietsCount,
+    required int commonCuisinesCount,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -450,17 +449,17 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatBox(
-                  value: '$commonCount',
-                  label: 'Préférence commune',
-                  color: const Color(0xFF4CAF50),
+                  value: '$dietsCount',
+                  label: 'Contraintes alimentaires',
+                  color: const Color(0xFFF57C00),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _StatBox(
-                  value: '—',
-                  label: 'Plats compatibles',
-                  color: const Color(0xFF2196F3),
+                  value: '$commonCuisinesCount',
+                  label: 'Préférences communes',
+                  color: const Color(0xFF4CAF50),
                 ),
               ),
             ],
@@ -506,15 +505,55 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ...allergies.map((l) =>
-                      _PillTag(label: l, color: const Color(0xFFD32F2F))),
+                  ...allergies.map((l) => _PillTag(
+                      label: translateValue(l), color: const Color(0xFFD32F2F))),
                 ],
               ),
       ],
     );
   }
 
-  Widget _buildPreferencesSection(List<String> commonPrefs) {
+  Widget _buildDietsSection(List<String> diets) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.restaurant_menu, size: 20, color: Color(0xFFF57C00)),
+            const SizedBox(width: 8),
+            const Text(
+              'Contraintes alimentaires',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: DAColors.foreground,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        diets.isEmpty
+            ? Text(
+                'Aucune contrainte',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: DAColors.mutedForeground,
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...diets.map((l) => _PillTag(
+                      label: translateValue(l), color: const Color(0xFFF57C00))),
+                ],
+              ),
+      ],
+    );
+  }
+
+  Widget _buildPreferencesSection(List<String> commonCuisines) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -533,7 +572,7 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
           ],
         ),
         const SizedBox(height: 12),
-        commonPrefs.isEmpty
+        commonCuisines.isEmpty
             ? Text(
                 'Aucune préférence commune',
                 style: TextStyle(
@@ -546,8 +585,8 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ...commonPrefs.map((l) =>
-                      _PillTag(label: l, color: const Color(0xFF4CAF50))),
+                  ...commonCuisines.map((l) => _PillTag(
+                      label: translateValue(l), color: const Color(0xFF4CAF50))),
                 ],
               ),
       ],
