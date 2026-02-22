@@ -33,7 +33,8 @@ class MenuApiService {
 
   /// Génère un menu consensus pour un groupe. POST /menu/consensus/group
   /// Body: { "profileIds": [...] }
-  static Future<GroupConsensusMenuResponse> generateGroupConsensusMenu(
+  /// Réponse attendue: { "menu": {...}, "explanation": "...", "adjustments": [...] }
+  static Future<GroupMenuResult> generateGroupConsensusMenu(
     List<String> profileIds,
   ) async {
     final response = await ApiClient.dio.post(
@@ -46,6 +47,6 @@ class MenuApiService {
       throw Exception('Réponse menu groupe invalide');
     }
     debugPrint('[MENU_GROUP] Clés: ${data.keys.toList()}');
-    return GroupConsensusMenuResponse.fromJson(data);
+    return GroupMenuResult.fromJson(data);
   }
 }

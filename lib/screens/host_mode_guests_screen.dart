@@ -29,13 +29,13 @@ class _HostModeGuestsScreenState extends State<HostModeGuestsScreen> {
       final allergies = full?.allergies ?? [];
       final diets = full?.diets ?? [];
       final cuisines = full?.favoriteCuisines ?? [];
-      final preferences = [...diets, ...cuisines].toSet().toList();
       result.add(HostGuestProfile(
         userId: r.userId,
         fullName: r.firstName,
         initials: r.initials,
         allergies: allergies,
-        diets: preferences,
+        diets: diets,
+        favoriteCuisines: cuisines,
       ));
     }
     return result;
@@ -101,7 +101,7 @@ class _HostModeGuestsScreenState extends State<HostModeGuestsScreen> {
                       child: _GuestCard(
                         name: guest.fullName,
                         allergies: guest.allergies,
-                        preferences: guest.diets,
+                        preferences: [...guest.diets, ...guest.favoriteCuisines],
                       ),
                     );
                   }),

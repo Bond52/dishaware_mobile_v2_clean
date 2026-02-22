@@ -81,8 +81,7 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
           : fullName.length == 1
               ? fullName[0].toUpperCase()
               : '${profile.firstName.isNotEmpty ? profile.firstName[0] : ''}${profile.lastName.isNotEmpty ? profile.lastName[0] : ''}'.toUpperCase();
-      final diets = [...profile.diets, ...profile.favoriteCuisines].toSet().toList();
-      debugPrint('[HOST_ANALYSE] Hôte chargé: allergies=${profile.allergies.length} (${profile.allergies}), régimes/cuisines=${diets.length} ($diets)');
+      debugPrint('[HOST_ANALYSE] Hôte chargé: allergies=${profile.allergies.length} (${profile.allergies}), régimes=${profile.diets}, cuisines=${profile.favoriteCuisines}');
       setState(() {
         _hostProfile = HostGuestProfile(
           userId: profile.userId ?? '',
@@ -90,7 +89,8 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
           fullName: fullName.isEmpty ? 'Vous' : fullName,
           initials: initials,
           allergies: profile.allergies,
-          diets: diets,
+          diets: profile.diets,
+          favoriteCuisines: profile.favoriteCuisines,
         );
       });
     } catch (_) {
@@ -107,24 +107,38 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
           initials: 'V',
           allergies: const [],
           diets: const [],
+          favoriteCuisines: const [],
         );
       });
     }
   }
 
+  /// Union de toutes les allergies de chaque profil.
   List<String> _allergiesUnion() {
-    final Set<String> union = {};
-    for (final p in _groupProfiles) {
-      union.addAll(p.allergies);
-    }
-    return union.toList();
+    final allAllergies = _groupProfiles
+        .expand((p) => p.allergies)
+        .where((s) => s.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    return allAllergies;
   }
 
+  /// Intersection des régimes + intersection des cuisines (préférences communes).
   List<String> _commonPreferences() {
-    if (_groupProfiles.isEmpty) return [];
-    Set<String> inter = _groupProfiles.first.diets.toSet();
-    for (final p in _groupProfiles.skip(1)) {
-      inter = inter.intersection(p.diets.toSet());
+    final profiles = _groupProfiles;
+    if (profiles.isEmpty) return [];
+    final commonDiets = _intersection(profiles.map((p) => p.diets).toList());
+    final commonCuisines = _intersection(profiles.map((p) => p.favoriteCuisines).toList());
+    final combined = <String>[...commonDiets, ...commonCuisines];
+    return combined.toSet().toList();
+  }
+
+  static List<String> _intersection(List<List<String>> lists) {
+    final nonEmpty = lists.where((l) => l.isNotEmpty).toList();
+    if (nonEmpty.isEmpty) return [];
+    Set<String> inter = nonEmpty.first.toSet();
+    for (final list in nonEmpty.skip(1)) {
+      inter = inter.intersection(list.toSet());
     }
     return inter.toList();
   }
@@ -180,7 +194,7 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
         MaterialPageRoute<void>(
           builder: (context) => HostModeMenuScreen(
             selectedProfiles: widget.selectedProfiles,
-            menuResponse: response,
+            menuResult: response,
           ),
         ),
       );
@@ -210,7 +224,7 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
             MaterialPageRoute<void>(
               builder: (context) => HostModeMenuScreen(
                 selectedProfiles: widget.selectedProfiles,
-                menuResponse: fallbackResponse,
+                menuResult: fallbackResponse,
               ),
             ),
           );
@@ -246,11 +260,16 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
 
   @override
   Widget build(BuildContext context) {
+    final profiles = _groupProfiles;
+    final participantCount = profiles.length;
     final allergies = _allergiesUnion();
     final commonPrefs = _commonPreferences();
+    final commonCuisines = _intersection(profiles.map((p) => p.favoriteCuisines).toList());
     final attentionPoints = _attentionPoints();
-    final participantCount = _groupProfiles.length;
-    debugPrint('[HOST_ANALYSE] Groupe: $participantCount participants, allergies=$allergies, préférences communes=$commonPrefs');
+
+    debugPrint('[ANALYSE_GROUP] participants: $participantCount');
+    debugPrint('[ANALYSE_GROUP] allergies: $allergies');
+    debugPrint('[ANALYSE_GROUP] commonCuisines: $commonCuisines');
 
     return Column(
       children: [

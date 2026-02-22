@@ -42,15 +42,19 @@ class UserProfile {
     required this.hasCompletedOnboarding,
   });
 
+  static List<String> _stringList(dynamic v) {
+    if (v == null) return [];
+    if (v is! List) return [];
+    return v.map((e) => e.toString()).toList();
+  }
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       userId: json['userId']?.toString(),
       firstName: (json['firstName'] ?? '') as String,
       lastName: (json['lastName'] ?? '') as String,
       dailyCalories: (json['dailyCalories'] ?? 2000) as int,
-      allergies: (json['allergies'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
+      allergies: _stringList(json['allergies'] ?? json['forbiddenIngredients']),
       diets: (json['diets'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),

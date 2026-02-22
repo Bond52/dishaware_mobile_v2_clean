@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/da_colors.dart';
@@ -7,16 +8,17 @@ class HostModeMenuScreen extends StatelessWidget {
   const HostModeMenuScreen({
     super.key,
     required this.selectedProfiles,
-    required this.menuResponse,
+    required this.menuResult,
   });
 
   final List<HostGuestProfile> selectedProfiles;
-  final GroupConsensusMenuResponse menuResponse;
+  final GroupMenuResult menuResult;
 
   @override
   Widget build(BuildContext context) {
-    final dishes = menuResponse.dishes;
-    final count = dishes.length;
+    final totalPlats = menuResult.totalPlats;
+    debugPrint('[GROUP_MENU_UI] menu reçu');
+    debugPrint('[GROUP_MENU_UI] nombre plats calculé: $totalPlats');
 
     return Scaffold(
       appBar: AppBar(
@@ -47,14 +49,42 @@ class HostModeMenuScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMenuGeneratedCard(platCount: count),
+                  _buildMenuGeneratedCard(platCount: totalPlats),
                   const SizedBox(height: 24),
-                  ...dishes.map((dish) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _DishCard(dish: dish),
-                    );
-                  }),
+                  _MenuCard(
+                    label: 'Entrée',
+                    value: menuResult.menu.starter,
+                    icon: Icons.restaurant,
+                  ),
+                  const SizedBox(height: 12),
+                  _MenuCard(
+                    label: 'Plat principal',
+                    value: menuResult.menu.main,
+                    icon: Icons.dinner_dining,
+                  ),
+                  if (menuResult.menu.alternative != null &&
+                      menuResult.menu.alternative!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _MenuCard(
+                      label: 'Alternative',
+                      value: menuResult.menu.alternative,
+                      icon: Icons.restaurant_menu,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _MenuCard(
+                    label: 'Dessert',
+                    value: menuResult.menu.dessert,
+                    icon: Icons.cake,
+                  ),
+                  if (menuResult.explanation.trim().isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    _ExplanationCard(text: menuResult.explanation),
+                  ],
+                  if (menuResult.adjustments.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _AdjustmentsSection(adjustments: menuResult.adjustments),
+                  ],
                   const SizedBox(height: 24),
                 ],
               ),
@@ -220,6 +250,177 @@ class HostModeMenuScreen extends StatelessWidget {
   }
 }
 
+class _MenuCard extends StatelessWidget {
+  final String label;
+  final String? value;
+  final IconData icon;
+
+  const _MenuCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final display = (value != null && value!.trim().isNotEmpty)
+        ? value!.trim()
+        : '—';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: DAColors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  display,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: DAColors.foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExplanationCard extends StatelessWidget {
+  final String text;
+
+  const _ExplanationCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DAColors.muted.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DAColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline, size: 20, color: Color(0xFF1976D2)),
+              const SizedBox(width: 8),
+              const Text(
+                'Explication',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: DAColors.foreground,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: DAColors.foreground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdjustmentsSection extends StatelessWidget {
+  final List<String> adjustments;
+
+  const _AdjustmentsSection({required this.adjustments});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ajustements',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1976D2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...adjustments.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '•',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1976D2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      e,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1976D2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StepIndicator extends StatelessWidget {
   final int number;
   final String label;
@@ -274,155 +475,6 @@ class _StepIndicator extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DishCard extends StatelessWidget {
-  final GroupConsensusDish dish;
-
-  const _DishCard({required this.dish});
-
-  @override
-  Widget build(BuildContext context) {
-    final compatibilityColor = dish.compatibilityPercent == 100
-        ? const Color(0xFF4CAF50)
-        : const Color(0xFFFFC107);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: DAColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: dish.imageUrl != null && dish.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        dish.imageUrl!,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholderImage(),
-                      )
-                    : _placeholderImage(),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      dish.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: DAColors.foreground,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.local_fire_department,
-                          size: 16,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${dish.calories} kcal',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: DAColors.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: compatibilityColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: compatibilityColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Text(
-                  '${dish.compatibilityPercent}%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: compatibilityColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...dish.criteria.map((c) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    c.isWarning
-                        ? Icons.warning_amber_rounded
-                        : Icons.check_circle,
-                    size: 16,
-                    color: c.isWarning
-                        ? const Color(0xFFFFC107)
-                        : const Color(0xFF4CAF50),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      c.text,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: c.isWarning
-                            ? const Color(0xFFE65100)
-                            : DAColors.foreground,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholderImage() {
-    return Container(
-      width: 80,
-      height: 80,
-      color: DAColors.muted,
-      child: const Icon(Icons.restaurant, color: DAColors.mutedForeground),
     );
   }
 }

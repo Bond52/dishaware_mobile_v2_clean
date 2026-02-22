@@ -7,6 +7,8 @@ class HostGuestProfile {
   final String initials;
   final List<String> allergies;
   final List<String> diets;
+  /// Cuisines préférées (pour intersection "préférences communes").
+  final List<String> favoriteCuisines;
 
   const HostGuestProfile({
     required this.userId,
@@ -15,6 +17,7 @@ class HostGuestProfile {
     required this.initials,
     this.allergies = const [],
     this.diets = const [],
+    this.favoriteCuisines = const [],
   });
 }
 
@@ -137,6 +140,80 @@ class GroupConsensusMenuResponse {
     return GroupConsensusMenuResponse(
       dishes: dishList,
       totalParticipants: totalParticipants,
+    );
+  }
+}
+
+/// Réponse complète POST /menu/consensus/group : { menu, explanation, adjustments }.
+class GroupMenuResult {
+  final GroupMenuResultMenu menu;
+  final String explanation;
+  final List<String> adjustments;
+
+  const GroupMenuResult({
+    required this.menu,
+    this.explanation = '',
+    this.adjustments = const [],
+  });
+
+  /// Nombre de champs non vides dans menu (starter, main, alternative, dessert).
+  int get totalPlats {
+    int count = 0;
+    if (menu.starter != null && menu.starter!.trim().isNotEmpty) count++;
+    if (menu.main != null && menu.main!.trim().isNotEmpty) count++;
+    if (menu.alternative != null && menu.alternative!.trim().isNotEmpty) count++;
+    if (menu.dessert != null && menu.dessert!.trim().isNotEmpty) count++;
+    return count;
+  }
+
+  factory GroupMenuResult.fromJson(Map<String, dynamic> json) {
+    final menuMap = json['menu'];
+    final menu = menuMap is Map<String, dynamic>
+        ? GroupMenuResultMenu.fromJson(menuMap)
+        : const GroupMenuResultMenu();
+    final explanation = (json['explanation'] ?? json['explication'] ?? '').toString().trim();
+    final rawAdj = json['adjustments'] ?? json['ajustements'];
+    List<String> adjustments = [];
+    if (rawAdj is List) {
+      for (final e in rawAdj) {
+        if (e != null && e.toString().trim().isNotEmpty) {
+          adjustments.add(e.toString().trim());
+        }
+      }
+    }
+    return GroupMenuResult(
+      menu: menu,
+      explanation: explanation,
+      adjustments: adjustments,
+    );
+  }
+}
+
+/// Objet menu dans la réponse groupe (starter, main, alternative?, dessert).
+class GroupMenuResultMenu {
+  final String? starter;
+  final String? main;
+  final String? alternative;
+  final String? dessert;
+
+  const GroupMenuResultMenu({
+    this.starter,
+    this.main,
+    this.alternative,
+    this.dessert,
+  });
+
+  factory GroupMenuResultMenu.fromJson(Map<String, dynamic> json) {
+    String? str(dynamic v) {
+      if (v == null) return null;
+      final s = v.toString().trim();
+      return s.isEmpty ? null : s;
+    }
+    return GroupMenuResultMenu(
+      starter: str(json['starter'] ?? json['entree'] ?? json['entrée']),
+      main: str(json['main'] ?? json['plat'] ?? json['platPrincipal']),
+      alternative: str(json['alternative'] ?? json['alternatif']),
+      dessert: str(json['dessert']),
     );
   }
 }
