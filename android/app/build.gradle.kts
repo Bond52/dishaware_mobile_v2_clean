@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.dishaware.mobile"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23  // requis par firebase-auth (flutter.minSdkVersion peut être 21)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

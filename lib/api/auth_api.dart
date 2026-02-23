@@ -56,6 +56,59 @@ class AuthApi {
     }
   }
 
+  /// 📧 Inscription sans mot de passe (prénom + nom)
+  static Future<Map<String, dynamic>> registerWithEmail({
+    required String firstName,
+    required String lastName,
+  }) async {
+    try {
+      final response = await ApiClient.dio.post(
+        '/auth/email/register',
+        data: {
+          'firstName': firstName.trim(),
+          'lastName': lastName.trim(),
+        },
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      if (e.response?.data != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      return {
+        'success': false,
+        'message': 'Erreur réseau ou serveur injoignable',
+      };
+    }
+  }
+
+  /// 📧 Connexion sans mot de passe (prénom + nom)
+  static Future<Map<String, dynamic>> loginWithEmail({
+    required String firstName,
+    required String lastName,
+  }) async {
+    try {
+      final response = await ApiClient.dio.post(
+        '/auth/email/login',
+        data: {
+          'firstName': firstName.trim(),
+          'lastName': lastName.trim(),
+        },
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {'success': false, 'notFound': true};
+      }
+      if (e.response?.data != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      return {
+        'success': false,
+        'message': 'Erreur réseau ou serveur injoignable',
+      };
+    }
+  }
+
   /// 🔐 GOOGLE AUTH — échange idToken Firebase contre JWT backend
   static Future<Map<String, dynamic>> loginWithGoogle({
     required String idToken,

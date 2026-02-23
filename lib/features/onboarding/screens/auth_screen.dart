@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../api/api_client.dart';
 import '../../../features/auth/google_auth_service.dart';
+import '../../../features/auth/screens/email_auth_screen.dart';
 import '../../../main.dart';
 import '../providers/auth_provider.dart';
 
@@ -32,6 +33,82 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool _googleLoading = false;
 
+  void _handleEmailTap() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Continuer avec Email',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0B1B2B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Créer un compte ou vous connecter',
+                style: TextStyle(fontSize: 14, color: Color(0xFF5A6A78)),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const EmailAuthScreen(
+                        mode: EmailAuthMode.signUp,
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00A57A),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Créer un compte'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const EmailAuthScreen(
+                        mode: EmailAuthMode.signIn,
+                      ),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: Color(0xFF00A57A)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Se connecter'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleGoogleSignIn() async {
     if (_googleLoading) return;
     setState(() => _googleLoading = true);
@@ -42,7 +119,12 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     }
 
-    final status = await GoogleAuthService.signInWithGoogle();
+    GoogleAuthStatus status;
+    try {
+      status = await GoogleAuthService.signInWithGoogle();
+    } catch (_) {
+      status = GoogleAuthStatus.networkError;
+    }
 
     if (!mounted) return;
     setState(() => _googleLoading = false);
@@ -59,6 +141,16 @@ class _AuthScreenState extends State<AuthScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Erreur réseau. Vérifiez votre connexion et réessayez.'),
+          ),
+        );
+        break;
+      case GoogleAuthStatus.timeout:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'La connexion a pris trop de temps. Sur émulateur, utilisez un appareil avec Google Play ou testez sur un téléphone.',
+            ),
+            duration: Duration(seconds: 5),
           ),
         );
         break;
@@ -154,12 +246,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
               const SizedBox(height: 16),
               _AuthOptionCard(
-                onTap: () {
-                  authProvider.setAuthMethod(AuthMethod.email);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Bientôt disponible')),
-                  );
-                },
+                onTap: _handleEmailTap,
                 leading: _IconTile(
                   background: const Color(0xFF00A57A),
                   borderColor: const Color(0xFF00A57A),
