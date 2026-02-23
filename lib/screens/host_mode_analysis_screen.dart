@@ -76,6 +76,10 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     try {
       final profile = await ProfileApiService.getMyProfile();
       if (!mounted) return;
+      if (profile == null) {
+        _setHostProfileFallback();
+        return;
+      }
       final fullName = '${profile.firstName} ${profile.lastName}'.trim();
       final initials = fullName.isEmpty
           ? 'U'
@@ -96,22 +100,27 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
       });
     } catch (_) {
       if (!mounted) return;
-      String hostUserId = '';
-      try {
-        hostUserId = await ApiClient.currentUserId;
-      } catch (_) {}
-      debugPrint('[HOST_ANALYSE] Hôte non chargé (getMyProfile en erreur), fallback userId=$hostUserId');
-      setState(() {
-        _hostProfile = HostGuestProfile(
-          userId: hostUserId,
-          fullName: 'Vous',
-          initials: 'V',
-          allergies: const [],
-          diets: const [],
-          favoriteCuisines: const [],
-        );
-      });
+      _setHostProfileFallback();
     }
+  }
+
+  Future<void> _setHostProfileFallback() async {
+    String hostUserId = '';
+    try {
+      hostUserId = await ApiClient.currentUserId;
+    } catch (_) {}
+    debugPrint('[HOST_ANALYSE] Hôte non chargé (getMyProfile en erreur ou 404), fallback userId=$hostUserId');
+    if (!mounted) return;
+    setState(() {
+      _hostProfile = HostGuestProfile(
+        userId: hostUserId,
+        fullName: 'Vous',
+        initials: 'V',
+        allergies: const [],
+        diets: const [],
+        favoriteCuisines: const [],
+      );
+    });
   }
 
   /// A. Union de toutes les allergies.

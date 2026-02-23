@@ -22,9 +22,28 @@ class ProfileScreen extends StatelessWidget {
     if (profile == null) {
       return Scaffold(
         body: Center(
-          child: Text(
-            profileProvider.error ?? 'Aucun profil trouvé',
-            style: const TextStyle(fontSize: 14),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  profileProvider.error ?? 'Aucun profil trouvé',
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF5A6A78)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => profileProvider.loadMyProfile(),
+                  icon: const Icon(Icons.refresh, size: 20),
+                  label: const Text('Réessayez'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00A57A),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'providers/filters_provider.dart';
 import 'api/api_client.dart';
 import 'router.dart';
+import 'features/auth/models/user.dart';
+import 'features/auth/providers/user_provider.dart';
 import 'features/onboarding/providers/auth_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
@@ -44,17 +46,26 @@ void main() async {
     ApiClient.setToken(globalToken!);
     final existingUserId = prefs.getString('currentUserId');
     if (existingUserId == null || existingUserId.isEmpty) {
-      await prefs.setString('currentUserId', globalToken!);
+      final user = await User.loadFromPrefs();
+      if (user != null) {
+        await prefs.setString('currentUserId', user.userId);
+      } else {
+        await prefs.setString('currentUserId', globalToken!);
+      }
     }
   }
 
+  final initialUser = await User.loadFromPrefs();
+
   await NotificationInitializer.run();
 
-  runApp(const DishAwareApp());
+  runApp(DishAwareApp(initialUser: initialUser));
 }
 
 class DishAwareApp extends StatelessWidget {
-  const DishAwareApp({super.key});
+  const DishAwareApp({super.key, this.initialUser});
+
+  final User? initialUser;
 
   @override
   Widget build(BuildContext context) {
@@ -62,15 +73,12 @@ class DishAwareApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'DishAware',
 
-      // ✅ ROUTER INCHANGÉ
       routerConfig: appRouter,
 
-      // ✅ THÈMES AJOUTÉS (AUCUN IMPACT SUR LE ROUTING)
       theme: DATheme.light(),
       darkTheme: DATheme.dark(),
       themeMode: ThemeMode.system,
 
-      // ✅ PROVIDERS AU BON ENDROIT (INCHANGÉ)
       builder: (context, child) {
         return MultiProvider(
           providers: [
@@ -81,6 +89,9 @@ class DishAwareApp extends StatelessWidget {
               create: (_) => AuthProvider(
                 isAuthenticated: globalToken != null,
               ),
+            ),
+            ChangeNotifierProvider(
+              create: (_) => UserProvider(initialUser: initialUser),
             ),
             ChangeNotifierProvider(
               create: (_) => OnboardingProvider(),

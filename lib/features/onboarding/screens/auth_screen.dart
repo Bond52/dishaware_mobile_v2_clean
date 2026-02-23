@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../api/api_client.dart';
 import '../../../features/auth/google_auth_service.dart';
+import '../../../features/auth/models/user.dart';
+import '../../../features/auth/providers/user_provider.dart';
 import '../../../features/auth/screens/email_auth_screen.dart';
 import '../../../main.dart';
 import '../providers/auth_provider.dart';
@@ -132,6 +134,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
     switch (status) {
       case GoogleAuthStatus.success:
+        final user = await User.loadFromPrefs();
+        if (user != null && mounted) context.read<UserProvider>().setUser(user);
         context.read<AuthProvider>().authenticate(AuthMethod.google);
         context.go('/home');
         break;

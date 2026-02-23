@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../features/auth/providers/user_provider.dart';
 import '../features/profile/providers/profile_provider.dart';
 import '../ui/components/da_card.dart';
 import '../theme/da_colors.dart';
@@ -224,11 +225,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGreeting() {
+    final user = context.watch<UserProvider>().currentUser;
     final profile = context.watch<ProfileProvider>().profile;
-    final raw = (profile?.firstName ?? '').trim();
-    final firstName = raw.isEmpty ? 'Utilisateur' : raw;
+    final name = user?.greetingName ?? (profile?.firstName ?? '').trim();
+    final display = name.isEmpty ? 'Utilisateur' : name;
     return Text(
-      'Bonjour, $firstName',
+      'Bonjour, $display',
       style: const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w600,

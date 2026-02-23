@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/auth_api.dart';
 import '../api/api_client.dart';
+import '../features/auth/models/user.dart';
+import '../features/auth/providers/user_provider.dart';
 import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,23 +51,19 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result["success"] == true && result["token"] != null) {
-        final token = result["token"];
-
-        // 💾 Sauvegarde locale
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString("auth_token", token);
-        await prefs.setString('currentUserId', token);
-
-        // 🔥 variable globale (router)
-        globalToken = token;
-
-        // 🔥 injection Dio
-        ApiClient.setToken(token);
-
-        // ➜ Home
-        if (mounted) {
-          context.go('/home');
+        final token = result["token"] as String;
+        final user = User.fromLoginResponse(Map<String, dynamic>.from(result));
+        if (user != null) {
+          await User.persist(user);
+          if (mounted) context.read<UserProvider>().setUser(user);
+        } else {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("auth_token", token);
+          await prefs.setString('currentUserId', token);
         }
+        globalToken = token;
+        ApiClient.setToken(token);
+        if (mounted) context.go('/home');
       } else {
         setState(() {
           errorMessage =

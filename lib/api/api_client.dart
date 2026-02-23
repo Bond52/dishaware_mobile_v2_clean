@@ -80,12 +80,12 @@ class ApiClient {
     dio.options.headers.remove("Authorization");
   }
 
-  /// Retourne le userId courant (SharedPreferences). Lance si non initialisé.
+  /// Retourne le userId courant (persisté après login, header x-user-id).
   static Future<String> get currentUserId async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('currentUserId');
     if (userId == null || userId.isEmpty) {
-      throw Exception('UserId non initialisé (mockAuth)');
+      throw Exception('Utilisateur non connecté (userId manquant)');
     }
     return userId;
   }

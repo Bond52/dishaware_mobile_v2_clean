@@ -25,16 +25,26 @@ class ProfileProvider extends ChangeNotifier {
 
     try {
       _profile = await ProfileApiService.getMyProfile();
+      if (_profile == null) {
+        _error = 'Profil non trouvé';
+      } else {
+        _error = null;
+      }
       print('PROFILE LOADED: ${_profile?.hasCompletedOnboarding}');
     } catch (e) {
       if (e is DioException) {
         debugPrint(
           'PROFILE LOAD ERROR: ${e.response?.statusCode} ${e.message} ${e.response?.data}',
         );
+        if (e.response?.statusCode == 404) {
+          _error = 'Profil non trouvé';
+        } else {
+          _error = 'Impossible de charger le profil. Réessayez.';
+        }
       } else {
         debugPrint('PROFILE LOAD ERROR: $e');
+        _error = 'Impossible de charger le profil. Réessayez.';
       }
-      _error = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
