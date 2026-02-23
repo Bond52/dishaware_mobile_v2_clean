@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../features/profile/providers/profile_provider.dart';
 import '../ui/components/da_card.dart';
 import '../theme/da_colors.dart';
 import '../features/recommendations/data/recommendation_api.dart';
@@ -223,9 +224,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGreeting() {
-    return const Text(
-      'Bonjour, Marie',
-      style: TextStyle(
+    final profile = context.watch<ProfileProvider>().profile;
+    final raw = (profile?.firstName ?? '').trim();
+    final firstName = raw.isEmpty ? 'Utilisateur' : raw;
+    return Text(
+      'Bonjour, $firstName',
+      style: const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: DAColors.foreground,

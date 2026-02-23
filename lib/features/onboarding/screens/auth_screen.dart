@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../api/api_client.dart';
+import '../../../features/auth/google_auth_service.dart';
 import '../../../main.dart';
 import '../providers/auth_provider.dart';
 
@@ -21,8 +22,55 @@ Future<void> _persistMockUserIdAndGo(BuildContext context, String route) async {
   if (context.mounted) context.go(route);
 }
 
-class AuthScreen extends StatelessWidget {
+class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  bool _googleLoading = false;
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_googleLoading) return;
+    setState(() => _googleLoading = true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connexion en cours…')),
+      );
+    }
+
+    final status = await GoogleAuthService.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _googleLoading = false);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    switch (status) {
+      case GoogleAuthStatus.success:
+        context.read<AuthProvider>().authenticate(AuthMethod.google);
+        context.go('/home');
+        break;
+      case GoogleAuthStatus.cancelled:
+        break;
+      case GoogleAuthStatus.networkError:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erreur réseau. Vérifiez votre connexion et réessayez.'),
+          ),
+        );
+        break;
+      case GoogleAuthStatus.invalidToken:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connexion refusée. Veuillez réessayer.'),
+          ),
+        );
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,10 +121,8 @@ class AuthScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               _AuthOptionCard(
-                onTap: () async {
-                  authProvider.authenticate(AuthMethod.google);
-                  await _persistMockUserIdAndGo(context, '/onboarding/flow');
-                },
+                onTap: _googleLoading ? null : _handleGoogleSignIn,
+                loading: _googleLoading,
                 leading: _IconTile(
                   background: Colors.white,
                   borderColor: const Color(0xFFE5E7EB),
@@ -142,13 +188,15 @@ class AuthScreen extends StatelessWidget {
 }
 
 class _AuthOptionCard extends StatelessWidget {
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool loading;
   final Widget leading;
   final String title;
   final String subtitle;
 
   const _AuthOptionCard({
     required this.onTap,
+    this.loading = false,
     required this.leading,
     required this.title,
     required this.subtitle,
@@ -157,8 +205,10 @@ class _AuthOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
+      onTap: loading ? null : onTap,
+      child: Opacity(
+        opacity: (onTap == null || loading) ? 0.7 : 1,
+        child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -200,8 +250,15 @@ class _AuthOptionCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (loading)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
           ],
         ),
+      ),
       ),
     );
   }

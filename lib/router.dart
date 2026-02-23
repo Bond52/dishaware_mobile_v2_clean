@@ -15,6 +15,7 @@ import 'features/onboarding/screens/welcome_screen.dart';
 import 'features/onboarding/screens/auth_screen.dart';
 import 'features/onboarding/screens/onboarding_flow.dart';
 import 'features/onboarding/screens/profile_confirmation_screen.dart';
+import 'screens/restaurant_detail_screen.dart';
 
 // Shell (BottomNav)
 import 'screens/main_shell.dart';
@@ -124,6 +125,13 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/suggestions',
       builder: (context, state) => const SuggestionsScreen(),
+    ),
+    GoRoute(
+      path: '/restaurant/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        return RestaurantDetailScreen(restaurantId: id);
+      },
     ),
   ],
 );

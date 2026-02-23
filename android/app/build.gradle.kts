@@ -58,3 +58,9 @@ android {
 flutter {
     source = "../.."
 }
+
+// Firebase : n'applique le plugin que si google-services.json est présent
+// (télécharge-le depuis la console Firebase et place-le dans android/app/)
+if (file("${project.projectDir}/google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}

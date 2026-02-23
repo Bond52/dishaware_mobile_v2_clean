@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../notifications/notification_settings_widget.dart';
 import '../providers/profile_provider.dart';
 import 'profile_comparison_screen.dart';
 import 'share_profile_screen.dart';
@@ -103,6 +104,8 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              _NotificationsSection(),
               const SizedBox(height: 16),
               const Text(
                 'Contraintes de santé',
@@ -1031,6 +1034,45 @@ class _PreferenceListCard extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationsSection extends StatelessWidget {
+  const _NotificationsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE1E4E8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Notifications intelligentes',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0B1B2B),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Recevez des suggestions lorsque vous restez quelques minutes près d\'un restaurant compatible avec votre profil.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF6B7A88),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const NotificationSettingsWidget(),
         ],
       ),
     );

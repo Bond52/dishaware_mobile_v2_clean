@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -10,14 +12,30 @@ import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'features/recommendations/providers/user_dish_interactions_store.dart';
 import 'features/favorites/providers/favorites_store.dart';
+import 'features/notifications/notification_initializer.dart';
 
 // ✅ AJOUT : thème DishAware
 import 'theme/da_theme.dart';
 
 String? globalToken;
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('[flutterNotification] Firebase init skipped: $e');
+  }
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   final prefs = await SharedPreferences.getInstance();
   globalToken = prefs.getString("auth_token");
@@ -29,6 +47,8 @@ void main() async {
       await prefs.setString('currentUserId', globalToken!);
     }
   }
+
+  await NotificationInitializer.run();
 
   runApp(const DishAwareApp());
 }

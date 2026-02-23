@@ -55,4 +55,22 @@ class AuthApi {
       };
     }
   }
+
+  /// 🔐 GOOGLE AUTH — échange idToken Firebase contre JWT backend
+  static Future<Map<String, dynamic>> loginWithGoogle({
+    required String idToken,
+  }) async {
+    try {
+      final response = await ApiClient.dio.post(
+        '/auth/google',
+        data: {'idToken': idToken},
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      if (e.response?.data != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      rethrow;
+    }
+  }
 }

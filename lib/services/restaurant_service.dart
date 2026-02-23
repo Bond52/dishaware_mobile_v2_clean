@@ -36,4 +36,21 @@ class RestaurantService {
     }
     return [];
   }
+
+  /// GET /restaurants/:id — détail d'un restaurant (pour notification).
+  static Future<Restaurant?> fetchRestaurantById(String id) async {
+    try {
+      final response = await ApiClient.dio.get(
+        '/restaurants/$id',
+        options: await ApiClient.optionsWithUserId(),
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Restaurant.fromJson(data);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
