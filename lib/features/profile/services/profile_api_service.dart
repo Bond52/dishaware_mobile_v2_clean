@@ -27,6 +27,8 @@ class ProfileApiService {
     );
   }
 
+  /// GET /profile/me avec x-user-id (userId du profil en base).
+  /// Si 404 : fallback GET /profile/:userId avec le même x-user-id.
   static Future<UserProfile?> getMyProfile() async {
     final opts = await _options();
     final userId = await _requireUserId();
