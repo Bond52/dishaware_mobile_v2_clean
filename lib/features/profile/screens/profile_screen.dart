@@ -212,6 +212,23 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
+                'Types de cuisine',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0B1B2B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _PreferenceListCard(
+                items: profile.favoriteCuisines,
+                emptyLabel: 'Non renseigné',
+                actionLabel: 'Modifier les types de cuisine',
+                onAction: () => _editCuisines(context, profile.favoriteCuisines),
+                iconResolver: _cuisineIcon,
+              ),
+              const SizedBox(height: 16),
+              const Text(
                 'Objectif calorique',
                 style: TextStyle(
                   fontSize: 16,
@@ -512,6 +529,34 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  static const List<String> _cuisineOptions = [
+    'Africaine',
+    'Américaine',
+    'Chinoise',
+    'Coréenne',
+    'Espagnole',
+    'Française',
+    'Indienne',
+    'Italienne',
+    'Japonaise',
+    'Libanaise',
+    'Méditerranéenne',
+    'Mexicaine',
+    'Thaïlandaise',
+  ];
+
+  Future<void> _editCuisines(BuildContext context, List<String> current) async {
+    final selection = await _showMultiChoiceSheet(
+      context,
+      title: 'Types de cuisine',
+      options: _cuisineOptions,
+      selected: current,
+    );
+    if (selection != null) {
+      await _updateProfile(context, {'favoriteCuisines': selection});
+    }
+  }
+
   Future<void> _editTasteGroup(BuildContext context, profile) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -671,6 +716,14 @@ class ProfileScreen extends StatelessWidget {
                   Navigator.pop(context);
                   Future.microtask(() => _editDiets(
                       rootContext, profile?.diets ?? const []));
+                },
+              ),
+              _ActionRow(
+                label: 'Types de cuisine',
+                onTap: () {
+                  Navigator.pop(context);
+                  Future.microtask(() => _editCuisines(
+                      rootContext, profile?.favoriteCuisines ?? const []));
                 },
               ),
             ],
@@ -897,6 +950,10 @@ class ProfileScreen extends StatelessWidget {
       default:
         return Icons.restaurant;
     }
+  }
+
+  IconData _cuisineIcon(String cuisine) {
+    return Icons.restaurant_menu;
   }
 
   String _initials(String name) {
