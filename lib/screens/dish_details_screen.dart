@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
+import '../config/features.dart';
 import '../ui/components/da_card.dart';
 import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 import '../features/recommendations/providers/user_dish_interactions_store.dart';
+import '../features/recommendations/widgets/dish_tag_section.dart';
 import '../services/feedback_service.dart';
 import '../features/favorites/providers/favorites_store.dart';
 import '../services/favorites_service.dart';
@@ -112,6 +114,10 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                   ],
                   const SizedBox(height: 16),
                   _buildIngredientsCard(),
+                  if (Features.enableDishTagLearning && dish != null) ...[
+                    const SizedBox(height: 16),
+                    DishTagSection(dish: dish),
+                  ],
                   const SizedBox(height: 16),
                   _buildFeedbackInfoCard(),
                   const SizedBox(height: 16),
@@ -123,16 +129,18 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                     interactionState: conceptState,
                     isSending: _sendingConcept,
                   ),
-                  const SizedBox(height: 16),
-                  _buildPreferenceQuestionCard(
-                    title: 'Cette préparation vous plaît ?',
-                    subtitle: 'La version de Green Kitchen',
-                    feedbackType: 'preparation',
-                    interactionState: _preparationState,
-                    isSending: _sendingPreparation,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTestedPreparationsCard(),
+                  if (Features.enablePreparationFeedback) ...[
+                    const SizedBox(height: 16),
+                    _buildPreferenceQuestionCard(
+                      title: 'Cette préparation vous plaît ?',
+                      subtitle: 'La version de Green Kitchen',
+                      feedbackType: 'preparation',
+                      interactionState: _preparationState,
+                      isSending: _sendingPreparation,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTestedPreparationsCard(),
+                  ],
                   const SizedBox(height: 16),
                   _buildOrderButton(),
                   const SizedBox(height: 24),
