@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../auth/logout_service.dart';
+import '../../auth/providers/user_provider.dart';
 import '../../notifications/notification_settings_widget.dart';
+import '../../../main.dart';
+import '../../onboarding/providers/auth_provider.dart';
+import '../../../router_refresh.dart';
 import '../providers/profile_provider.dart';
 import 'profile_comparison_screen.dart';
 import 'share_profile_screen.dart';
@@ -21,29 +28,54 @@ class ProfileScreen extends StatelessWidget {
 
     if (profile == null) {
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  profileProvider.error ?? 'Aucun profil trouvé',
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF5A6A78)),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => profileProvider.loadMyProfile(),
-                  icon: const Icon(Icons.refresh, size: 20),
-                  label: const Text('Réessayez'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A57A),
-                    foregroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 16),
+                  child: GestureDetector(
+                    onTap: () => _showLogoutDialog(context),
+                    child: Text(
+                      'Se déconnecter',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.error,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          profileProvider.error ?? 'Aucun profil trouvé',
+                          style: const TextStyle(fontSize: 14, color: Color(0xFF5A6A78)),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => profileProvider.loadMyProfile(),
+                          icon: const Icon(Icons.refresh, size: 20),
+                          label: const Text('Réessayez'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00A57A),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -75,6 +107,21 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showLogoutDialog(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      child: Text(
+                        'Se déconnecter',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.error,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () => _openGlobalEdit(context),
                     child: Container(
@@ -513,6 +560,40 @@ class ProfileScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmation'),
+        content: const Text('Voulez-vous vraiment vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await LogoutService.performLogout();
+    if (!context.mounted) return;
+    globalToken = null;
+    await context.read<UserProvider>().clearUser();
+    context.read<AuthProvider>().signOut();
+    context.read<ProfileProvider>().clearProfile();
+    RouterRefresh.instance.refresh();
+    if (!context.mounted) return;
+    context.go('/welcome');
   }
 
   Future<void> _openGlobalEdit(BuildContext context) async {

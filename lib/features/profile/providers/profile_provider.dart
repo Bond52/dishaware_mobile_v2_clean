@@ -58,6 +58,14 @@ class ProfileProvider extends ChangeNotifier {
     RouterRefresh.instance.refresh();
   }
 
+  /// Au logout : vide le profil en mémoire pour que le routeur ne considère plus l'utilisateur comme connecté.
+  void clearProfile() {
+    _profile = null;
+    _error = null;
+    notifyListeners();
+    RouterRefresh.instance.refresh();
+  }
+
   Future<UserProfile?> updateProfile(Map<String, dynamic> payload) async {
     try {
       await ProfileApiService.updateProfile(payload);
