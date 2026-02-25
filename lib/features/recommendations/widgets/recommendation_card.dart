@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../ui/components/da_card.dart';
-import '../../../ui/components/da_badge.dart';
 import '../../../theme/da_colors.dart';
+import '../../../utils/tag_translations.dart';
 import '../domain/recommended_dish.dart';
 import '../../recommendations/providers/user_dish_interactions_store.dart';
 
@@ -136,10 +136,7 @@ class RecommendationCard extends StatelessWidget {
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: DABadge(
-                  label: '${_formatScore(dish.score)}% compatible',
-                  variant: DABadgeVariant.success,
-                ),
+                child: _buildDishTagsOverlay(dish),
               ),
             ],
           ),
@@ -281,10 +278,34 @@ class RecommendationCard extends StatelessWidget {
     );
   }
 
-  int _formatScore(double score) {
-    if (score <= 1) {
-      return (score * 100).round();
-    }
-    return score.round();
+  /// Affiche les 3 premiers tags du plat (régimes + cuisines) sur la photo, traduits.
+  Widget _buildDishTagsOverlay(RecommendedDish dish) {
+    final tags = <String>[]
+      ..addAll(dish.diets.where((s) => s.trim().isNotEmpty))
+      ..addAll(dish.cuisines.where((s) => s.trim().isNotEmpty));
+    final displayTags = tags.take(3).map((t) => translateTag(t)).toList();
+    if (displayTags.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: displayTags
+            .map((label) => Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: DAColors.foreground,
+                  ),
+                ))
+            .toList(),
+      ),
+    );
   }
+
 }

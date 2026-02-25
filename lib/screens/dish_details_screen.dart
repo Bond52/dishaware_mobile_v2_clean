@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 import '../config/features.dart';
+import '../utils/tag_translations.dart';
 import '../ui/components/da_card.dart';
 import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
@@ -308,7 +309,7 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: diets
-                  .map((diet) => DABadge(label: diet))
+                  .map((diet) => DABadge(label: translateTag(diet)))
                   .toList(),
             ),
             const SizedBox(height: 12),
@@ -327,7 +328,7 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: cuisines
-                  .map((cuisine) => DABadge(label: cuisine))
+                  .map((cuisine) => DABadge(label: translateTag(cuisine)))
                   .toList(),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../api/api_client.dart';
+import '../../../utils/tag_translations.dart';
 import '../domain/recommended_dish.dart';
 import '../../../../theme/da_colors.dart';
 
@@ -92,7 +93,7 @@ class _DishTagSectionState extends State<DishTagSection> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    tag,
+                    translateTag(tag),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,

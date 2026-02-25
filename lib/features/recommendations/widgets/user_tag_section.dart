@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../api/api_client.dart';
+import '../../../utils/tag_translations.dart';
 import '../domain/recommended_dish.dart';
 import '../../../../theme/da_colors.dart';
 
@@ -57,9 +58,11 @@ class _UserTagSectionState extends State<UserTagSection> {
       } else if (data is Map && data['tags'] is List) {
         list = (data['tags'] as List).map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
       }
-      list.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      // Fusionner avec les tags déjà affichés pour ne pas écraser un ajout local (race condition).
+      final merged = <String>{..._tags, ...list};
+      final sorted = merged.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       setState(() {
-        _tags = list;
+        _tags = sorted;
         _tagsLoading = false;
       });
     } catch (_) {
@@ -120,7 +123,13 @@ class _UserTagSectionState extends State<UserTagSection> {
     final dishId = widget.dish.dishId;
     if (dishId.isEmpty) return;
 
-    setState(() => _addSending = true);
+    // Mise à jour optimiste : afficher le tag tout de suite.
+    setState(() {
+      _addSending = true;
+      _tags = [..._tags, normalized]..sort((a, b) => a.compareTo(b));
+      _tagController.clear();
+      _suggestions = [];
+    });
     try {
       await ApiClient.dio.post(
         '/dishes/$dishId/tags',
@@ -128,14 +137,14 @@ class _UserTagSectionState extends State<UserTagSection> {
         options: await ApiClient.optionsWithUserId(),
       );
       if (!mounted) return;
+      setState(() => _addSending = false);
+    } catch (_) {
+      if (!mounted) return;
+      // En cas d'erreur API, retirer le tag affiché.
       setState(() {
         _addSending = false;
-        _tags = [..._tags, normalized]..sort((a, b) => a.compareTo(b));
-        _tagController.clear();
-        _suggestions = [];
+        _tags = _tags.where((t) => t.toLowerCase() != normalized).toList();
       });
-    } catch (_) {
-      if (mounted) setState(() => _addSending = false);
     }
   }
 
@@ -226,7 +235,7 @@ class _UserTagSectionState extends State<UserTagSection> {
                       onTap: () => _addTag(s),
                       borderRadius: BorderRadius.circular(16),
                       child: Chip(
-                        label: Text(s, style: const TextStyle(fontSize: 12)),
+                        label: Text(translateTag(s), style: const TextStyle(fontSize: 12)),
                         padding: EdgeInsets.zero,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -252,7 +261,7 @@ class _UserTagSectionState extends State<UserTagSection> {
         border: Border.all(color: DAColors.border),
       ),
       child: Text(
-        tag,
+        translateTag(tag),
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DAColors.foreground),
       ),
     );
