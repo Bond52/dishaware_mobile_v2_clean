@@ -7,7 +7,7 @@ import '../ui/components/da_badge.dart';
 import '../theme/da_colors.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 import '../features/recommendations/providers/user_dish_interactions_store.dart';
-import '../features/recommendations/widgets/dish_tag_section.dart';
+import '../features/recommendations/widgets/user_tag_section.dart';
 import '../services/feedback_service.dart';
 import '../features/favorites/providers/favorites_store.dart';
 import '../services/favorites_service.dart';
@@ -114,10 +114,6 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                   ],
                   const SizedBox(height: 16),
                   _buildIngredientsCard(),
-                  if (Features.enableDishTagLearning && dish != null) ...[
-                    const SizedBox(height: 16),
-                    DishTagSection(dish: dish),
-                  ],
                   const SizedBox(height: 16),
                   _buildFeedbackInfoCard(),
                   const SizedBox(height: 16),
@@ -129,6 +125,11 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                     interactionState: conceptState,
                     isSending: _sendingConcept,
                   ),
+                  const SizedBox(height: 20),
+                  if (Features.enableDishTagLearning && dish != null) ...[
+                    UserTagSection(dish: dish),
+                    const SizedBox(height: 20),
+                  ],
                   if (Features.enablePreparationFeedback) ...[
                     const SizedBox(height: 16),
                     _buildPreferenceQuestionCard(
@@ -549,7 +550,7 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
                     size: 18,
                     color: likeSelected ? Colors.green : null,
                   ),
-                  label: const Text('J\'aime'),
+                  label: const Text('J\'aime ce plat'),
                   style: ButtonStyle(
                     foregroundColor: MaterialStateProperty.resolveWith<Color?>(
                       (states) => likeSelected
