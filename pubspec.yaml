@@ -44,6 +44,7 @@ dev_dependencies:
 
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
+  image: ^4.0.17
 
 flutter:
   uses-material-design: true
@@ -51,7 +52,12 @@ flutter:
   assets:
     - assets/images/
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/app_icon.png
+  # Fond transparent pour l'icône adaptative (comme Chrome)
+  adaptive_icon_background: "#00000000"
+  adaptive_icon_foreground: assets/images/app_icon.png
+  # Inset : image centrée, traits noirs du contour masqués
+  adaptive_icon_foreground_inset: 12

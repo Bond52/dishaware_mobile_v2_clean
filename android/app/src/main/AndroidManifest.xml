@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="dishaware_mobile_v2_clean"
+        android:label="DishAware"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
