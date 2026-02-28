@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
+
+import '../config/api_config.dart';
 import '../models/feedback_model.dart';
 
 class FeedbackService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://10.0.2.2:4000',
+      baseUrl: ApiConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
     ),

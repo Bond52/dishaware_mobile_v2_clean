@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 
+import '../config/api_config.dart';
+
 class OrderService {
   final Dio _dio = Dio(
     BaseOptions(
-                // baseUrl: "http://10.0.2.2:4000/api", // backend local
-     baseUrl: "https://dishaware-backend.onrender.com/api",
+      baseUrl: ApiConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
       headers: {

@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
-import '../models/filter_payload.dart';
+
+import '../config/api_config.dart';
 import '../models/dish_suggestion.dart';
+import '../models/filter_payload.dart';
 
 class AiService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://localhost:3000', // ⚠️ adapter si besoin
+      baseUrl: ApiConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     ),

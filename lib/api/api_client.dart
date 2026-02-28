@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/api_config.dart';
+
 /// Intercepteur pour logger les requêtes/réponses API (visible dans la console en debug).
 class _ApiLogInterceptor extends Interceptor {
   static const int _maxBodyLength = 800;
@@ -46,8 +48,8 @@ class _ApiLogInterceptor extends Interceptor {
 class ApiClient {
   static final Dio dio = Dio(
     BaseOptions(
-      baseUrl: "http://10.0.2.2:4000/api", // backend local (Android Emulator)
-      // baseUrl: "https://dishaware-backend.onrender.com/api", // backend Render (désactivé)
+      // baseUrl: "http://10.0.2.2:4000/api", // backend local (Android Emulator)
+      baseUrl: ApiConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
       headers: {
