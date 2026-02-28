@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -40,22 +41,23 @@ final GoRouter appRouter = GoRouter(
         currentPath == '/onboarding/flow' ||
         currentPath == '/onboarding/confirmation';
 
-    print('ROUTER CHECK');
-    print('isLoading: ${profileProvider.isLoading}');
-    print(
-        'hasCompletedOnboarding: ${profileProvider.profile?.hasCompletedOnboarding}');
-    print('currentPath: $currentPath');
+    // Debug: valeur utilisée pour le redirect (profile ?? auth)
+    if (kDebugMode) {
+      print('ROUTER CHECK path=$currentPath loading=${profileProvider.isLoading} '
+          'hasCompletedOnboarding=$hasCompletedOnboarding (profile=${profileProvider.profile?.hasCompletedOnboarding} auth=${authProvider.hasCompletedOnboarding})');
+    }
 
     // ⏳ Attendre le chargement du profil avant toute redirection
     if (profileProvider.isLoading) {
       return isBootRoute ? null : '/boot';
     }
 
-    // ✅ Nouvelle règle d'entrée :
-    // - Tant que l'onboarding n'est pas terminé, forcer /welcome.
-    // - Une fois terminé, rediriger vers /home (et éviter /login et onboarding).
+    // ✅ Règle d'entrée centralisée :
+    // - Authentifié + onboarding non terminé → /onboarding/flow (une seule navigation).
+    // - Non authentifié + onboarding non terminé → /welcome.
+    // - Onboarding terminé → /home (et éviter login/onboarding).
     if (!hasCompletedOnboarding && !isOnboardingRoute) {
-      return '/welcome';
+      return authProvider.isAuthenticated ? '/onboarding/flow' : '/welcome';
     }
 
     if (hasCompletedOnboarding &&

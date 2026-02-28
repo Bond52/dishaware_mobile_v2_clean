@@ -34,6 +34,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setHasCompletedOnboarding(bool value) {
+    _hasCompletedOnboarding = value;
+    notifyListeners();
+  }
+
   void signOut() {
     _isAuthenticated = false;
     _authMethod = null;

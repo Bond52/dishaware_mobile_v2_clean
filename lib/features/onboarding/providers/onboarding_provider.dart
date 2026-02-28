@@ -44,6 +44,33 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Préremplit prénom/nom si vides (ex. après inscription) pour éviter la double saisie.
+  void setNamesIfEmpty(String firstName, String lastName) {
+    final f = firstName.trim();
+    final l = lastName.trim();
+    if (f.isEmpty && l.isEmpty) return;
+    bool changed = false;
+    if (_data.firstName.isEmpty && f.isNotEmpty) {
+      _data = _data.copyWith(firstName: f);
+      changed = true;
+    }
+    if (_data.lastName.isEmpty && l.isNotEmpty) {
+      _data = _data.copyWith(lastName: l);
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// Après inscription : on a déjà le nom sur l'écran "Créer un compte", donc on saute l'étape 1.
+  void skipStep1IfNamesFilled() {
+    if (_currentStep == 1 &&
+        _data.firstName.trim().isNotEmpty &&
+        _data.lastName.trim().isNotEmpty) {
+      _currentStep = 2;
+      notifyListeners();
+    }
+  }
+
   void updateDailyCalories(int value) {
     _data = _data.copyWith(dailyCalories: value);
     notifyListeners();

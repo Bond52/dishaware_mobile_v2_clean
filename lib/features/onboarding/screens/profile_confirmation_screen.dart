@@ -22,10 +22,11 @@ class ProfileConfirmationScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 8),
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -128,7 +129,7 @@ class ProfileConfirmationScreen extends StatelessWidget {
                 subtitle: null,
                 isMessage: true,
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -197,7 +198,8 @@ class ProfileConfirmationScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-            ],
+              ],
+            ),
           ),
         ),
       ),

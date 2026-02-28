@@ -9,6 +9,7 @@ import '../../../main.dart';
 import '../models/user.dart';
 import '../providers/user_provider.dart';
 import '../../onboarding/providers/auth_provider.dart';
+import '../../onboarding/providers/onboarding_provider.dart';
 
 enum EmailAuthMode {
   signUp,
@@ -28,6 +29,8 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   bool _loading = false;
+  /// Garde contre double soumission (tap rapide ou double fire).
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -42,30 +45,34 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_canSubmit || _loading) return;
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-
-    setState(() => _loading = true);
-    if (mounted) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-    }
+    if (!_canSubmit || _loading || _isSubmitting) return;
+    // Garde synchrone immédiate : évite deux appels en vol (double-tap ou double fire).
+    _isSubmitting = true;
+    _loading = true;
+    setState(() {});
+    if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
 
     try {
       if (widget.mode == EmailAuthMode.signUp) {
         final result = await AuthApi.registerWithEmail(
-          firstName: firstName,
-          lastName: lastName,
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
         );
         if (!mounted) return;
-        setState(() => _loading = false);
         if (result['success'] == true && result['token'] != null) {
+          final hasCompletedOnboarding = _readHasCompletedOnboarding(result);
           await _persistAndGoHome(
             result['token'] as String,
             User.fromLoginResponse(Map<String, dynamic>.from(result)),
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            firstName: _firstNameController.text.trim(),
+            lastName: _lastNameController.text.trim(),
           );
           return;
         }
+        _loading = false;
+        _isSubmitting = false;
+        if (mounted) setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -75,18 +82,24 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         );
       } else {
         final result = await AuthApi.loginWithEmail(
-          firstName: firstName,
-          lastName: lastName,
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
         );
         if (!mounted) return;
-        setState(() => _loading = false);
         if (result['success'] == true && result['token'] != null) {
+          final hasCompletedOnboarding = _readHasCompletedOnboarding(result);
           await _persistAndGoHome(
             result['token'] as String,
             User.fromLoginResponse(Map<String, dynamic>.from(result)),
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            firstName: _firstNameController.text.trim(),
+            lastName: _lastNameController.text.trim(),
           );
           return;
         }
+        _loading = false;
+        _isSubmitting = false;
+        if (mounted) setState(() {});
         if (result['notFound'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -105,7 +118,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      _loading = false;
+      _isSubmitting = false;
+      setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Erreur réseau. Réessayez.'),
@@ -114,7 +129,25 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     }
   }
 
-  Future<void> _persistAndGoHome(String token, User? user) async {
+  /// Lit hasCompletedOnboarding depuis la réponse register/login (backend Render).
+  bool _readHasCompletedOnboarding(Map<String, dynamic> result) {
+    final user = result['user'];
+    if (user is Map<String, dynamic>) {
+      final v = user['hasCompletedOnboarding'];
+      if (v is bool) return v;
+    }
+    final v = result['hasCompletedOnboarding'];
+    if (v is bool) return v;
+    return true;
+  }
+
+  Future<void> _persistAndGoHome(
+    String token,
+    User? user, {
+    bool hasCompletedOnboarding = true,
+    String? firstName,
+    String? lastName,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
     if (user != null) {
@@ -129,7 +162,24 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     final authProvider = context.read<AuthProvider>();
     authProvider.setAuthMethod(AuthMethod.email);
     authProvider.authenticate(AuthMethod.email);
-    authProvider.completeOnboarding();
+    if (hasCompletedOnboarding) {
+      authProvider.completeOnboarding();
+    } else {
+      authProvider.setHasCompletedOnboarding(false);
+      // Préremplir l'onboarding avec les noms saisis (évite double saisie)
+      final first = (firstName?.trim().isNotEmpty == true)
+          ? firstName!.trim()
+          : (user?.firstName ?? '').trim();
+      final last = (lastName?.trim().isNotEmpty == true)
+          ? lastName!.trim()
+          : (user?.lastName ?? '').trim();
+      if (first.isNotEmpty || last.isNotEmpty) {
+        final onboarding = context.read<OnboardingProvider>();
+        onboarding.setNamesIfEmpty(first, last);
+        onboarding.skipStep1IfNamesFilled();
+      }
+    }
+    // Une seule navigation : le redirect du routeur envoie vers /onboarding/flow si besoin
     context.go('/home');
   }
 
@@ -298,7 +348,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: (_canSubmit && !_loading) ? _submit : null,
+                onPressed: (_canSubmit && !_loading && !_isSubmitting) ? _submit : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00A57A),
                   disabledBackgroundColor: const Color(0xFFB0BEC5),
