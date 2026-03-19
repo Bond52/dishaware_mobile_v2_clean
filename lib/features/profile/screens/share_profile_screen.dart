@@ -192,8 +192,12 @@ class _ShareProfileScreenState extends State<ShareProfileScreen> {
         targetType: target.type,
       );
       if (!mounted) return;
+      // _showSnack(
+      //   'Profil partagé avec succès (24h)',
+      //   const Color(0xFF00A57A),
+      // );
       _showSnack(
-        'Profil partagé avec succès (24h)',
+        'Profil partagé avec succès',
         const Color(0xFF00A57A),
       );
     } on Exception catch (e) {
