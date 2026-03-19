@@ -254,7 +254,7 @@ class _MenuItemCard extends StatelessWidget {
             MaterialPageRoute<void>(
               builder: (_) => RecipeDetailsPage(
                 dishName: item!.name,
-                previewDescription: item!.description,
+                description: item!.description,
                 previewCalories: item!.calories,
               ),
             ),
