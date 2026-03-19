@@ -18,6 +18,10 @@ class UserProfile {
   final String diningContext;
   final String explorationAttitude;
   final List<String> profileExplanation;
+  final Map<String, double> tasteVectorWeights;
+  final List<String> preferredCookingMethods;
+  final double? satietyPreference;
+  final Map<String, double> texturePreferences;
   final bool hasCompletedOnboarding;
 
   const UserProfile({
@@ -39,6 +43,10 @@ class UserProfile {
     required this.diningContext,
     required this.explorationAttitude,
     required this.profileExplanation,
+    required this.tasteVectorWeights,
+    required this.preferredCookingMethods,
+    required this.satietyPreference,
+    required this.texturePreferences,
     required this.hasCompletedOnboarding,
   });
 
@@ -46,6 +54,26 @@ class UserProfile {
     if (v == null) return [];
     if (v is! List) return [];
     return v.map((e) => e.toString()).toList();
+  }
+
+  static Map<String, double> _doubleMap(dynamic v) {
+    if (v is! Map) return {};
+    final out = <String, double>{};
+    v.forEach((key, value) {
+      if (value is num) {
+        out[key.toString()] = value.toDouble();
+      } else {
+        final parsed = double.tryParse(value.toString());
+        if (parsed != null) out[key.toString()] = parsed;
+      }
+    });
+    return out;
+  }
+
+  static double? _doubleOrNull(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -75,6 +103,18 @@ class UserProfile {
       profileExplanation: (json['profileExplanation'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      tasteVectorWeights: _doubleMap(
+        json['taste_vector_weights'] ?? json['tasteVectorWeights'],
+      ),
+      preferredCookingMethods: _stringList(
+        json['preferred_cooking_methods'] ?? json['preferredCookingMethods'],
+      ),
+      satietyPreference: _doubleOrNull(
+        json['satiety_preference'] ?? json['satietyPreference'],
+      ),
+      texturePreferences: _doubleMap(
+        json['texture_preferences'] ?? json['texturePreferences'],
+      ),
       hasCompletedOnboarding:
           (json['hasCompletedOnboarding'] ?? false) as bool,
     );
@@ -100,6 +140,10 @@ class UserProfile {
       'diningContext': diningContext,
       'explorationAttitude': explorationAttitude,
       'profileExplanation': profileExplanation,
+      'taste_vector_weights': tasteVectorWeights,
+      'preferred_cooking_methods': preferredCookingMethods,
+      'satiety_preference': satietyPreference,
+      'texture_preferences': texturePreferences,
       'hasCompletedOnboarding': hasCompletedOnboarding,
     };
   }

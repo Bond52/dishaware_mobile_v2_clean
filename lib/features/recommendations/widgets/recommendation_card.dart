@@ -270,6 +270,10 @@ class RecommendationCard extends StatelessWidget {
                     ],
                   ),
                 ],
+                if (dish.debug != null) ...[
+                  const SizedBox(height: 8),
+                  _buildDebugPanel(dish.debug!),
+                ],
               ],
             ),
           ),
@@ -308,4 +312,74 @@ class RecommendationCard extends StatelessWidget {
     );
   }
 
+  /// Debug temporaire: affiche le détail de scoring quand `response.debug` est présent.
+  Widget _buildDebugPanel(Map<String, dynamic> debug) {
+    String read(List<String> path) {
+      dynamic value = debug;
+      for (final key in path) {
+        if (value is Map<String, dynamic>) {
+          value = value[key];
+        } else {
+          return '-';
+        }
+      }
+      if (value == null) return '-';
+      return value.toString();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: ExpansionTile(
+        dense: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        title: const Text(
+          '🔎 Score details',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        children: [
+          _debugLine('Taste', read(['taste', 'contribution'])),
+          _debugLine('Texture', read(['texture', 'contribution'])),
+          _debugLine('Cooking', read(['cooking', 'contribution'])),
+          _debugLine('Satiety', read(['satiety', 'contribution'])),
+          _debugLine('Penalty', read(['penalties', 'total'])),
+          const Divider(height: 16),
+          _debugLine('Taste similarity', read(['taste', 'similarity'])),
+          _debugLine('Texture similarity', read(['texture', 'similarity'])),
+          _debugLine('Cooking similarity', read(['cooking', 'similarity'])),
+          _debugLine('Satiety similarity', read(['satiety', 'similarity'])),
+          const Divider(height: 16),
+          _debugLine('Taste weight', read(['taste', 'weight'])),
+          _debugLine('Texture weight', read(['texture', 'weight'])),
+          _debugLine('Cooking weight', read(['cooking', 'weight'])),
+          _debugLine('Satiety weight', read(['satiety', 'weight'])),
+          _debugLine('Total score', read(['totalScore'])),
+        ],
+      ),
+    );
+  }
+
+  Widget _debugLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontSize: 12, color: DAColors.mutedForeground),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
 }

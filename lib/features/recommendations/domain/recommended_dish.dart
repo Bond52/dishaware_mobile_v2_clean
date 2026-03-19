@@ -9,6 +9,7 @@ class RecommendedDish {
   final List<String> diets;
   final List<String> ingredients;
   final List<String> ingredientsPreview;
+  final Map<String, dynamic>? debug;
 
   const RecommendedDish({
     required this.dishId,
@@ -21,6 +22,7 @@ class RecommendedDish {
     required this.diets,
     required this.ingredients,
     required this.ingredientsPreview,
+    this.debug,
   });
 
   factory RecommendedDish.fromJson(Map<String, dynamic> json) {
@@ -52,6 +54,11 @@ class RecommendedDish {
       ingredientsPreview: (json['ingredientsPreview'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      debug: json['debug'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(json['debug'] as Map)
+          : (json['technicalBreakdown'] is Map<String, dynamic>
+              ? Map<String, dynamic>.from(json['technicalBreakdown'] as Map)
+              : null),
     );
   }
 }

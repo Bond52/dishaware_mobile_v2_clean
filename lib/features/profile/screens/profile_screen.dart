@@ -288,6 +288,10 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _TasteProfileSummaryCard(
                 explanations: profile.profileExplanation,
+                tasteVectorWeights: profile.tasteVectorWeights,
+                preferredCookingMethods: profile.preferredCookingMethods,
+                satietyPreference: profile.satietyPreference,
+                texturePreferences: profile.texturePreferences,
               ),
               const SizedBox(height: 24),
             ],
@@ -1648,9 +1652,17 @@ class _SelectableCard extends StatelessWidget {
 
 class _TasteProfileSummaryCard extends StatefulWidget {
   final List<String> explanations;
+  final Map<String, double> tasteVectorWeights;
+  final List<String> preferredCookingMethods;
+  final double? satietyPreference;
+  final Map<String, double> texturePreferences;
 
   const _TasteProfileSummaryCard({
     required this.explanations,
+    required this.tasteVectorWeights,
+    required this.preferredCookingMethods,
+    required this.satietyPreference,
+    required this.texturePreferences,
   });
 
   @override
@@ -1664,6 +1676,28 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
   @override
   Widget build(BuildContext context) {
     final items = widget.explanations;
+    final tasteWeight = widget.tasteVectorWeights['taste'];
+    final textureWeight = widget.tasteVectorWeights['texture'];
+    final cookingWeight = widget.tasteVectorWeights['cooking'];
+    final satietyWeight = widget.tasteVectorWeights['satiety'];
+
+    final tasteSimilarity = (widget.tasteVectorWeights.isNotEmpty) ? 1.0 : null;
+    final textureSimilarity = (widget.texturePreferences.isNotEmpty) ? 1.0 : null;
+    final cookingSimilarity =
+        widget.preferredCookingMethods.isNotEmpty ? 1.0 : null;
+    final satietySimilarity = widget.satietyPreference;
+
+    final tasteContribution = _mulOrNull(tasteWeight, tasteSimilarity);
+    final textureContribution = _mulOrNull(textureWeight, textureSimilarity);
+    final cookingContribution = _mulOrNull(cookingWeight, cookingSimilarity);
+    final satietyContribution = _mulOrNull(satietyWeight, satietySimilarity);
+    final totalScore = [tasteContribution, textureContribution, cookingContribution, satietyContribution]
+        .whereType<double>()
+        .fold<double>(0, (sum, v) => sum + v);
+    final hasAnyContribution =
+        [tasteContribution, textureContribution, cookingContribution, satietyContribution]
+            .any((v) => v != null);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1723,16 +1757,40 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
             ),
           ),
           const SizedBox(height: 12),
-          if (items.isEmpty)
-            const Text(
-              'Analyse bientôt disponible.',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                color: Color(0xFF4A3F78),
-              ),
-            )
-          else
+          const Text(
+            '🔎 Score details',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4A3F78),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _scoreRow('Taste', _fmt(tasteContribution)),
+          _scoreRow('Texture', _fmt(textureContribution)),
+          _scoreRow('Cooking', _fmt(cookingContribution)),
+          _scoreRow('Satiety', _fmt(satietyContribution)),
+          _scoreRow('Penalty', '0'),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFD9D0FA)),
+          const SizedBox(height: 8),
+          _scoreRow('Taste similarity', _fmt(tasteSimilarity)),
+          _scoreRow('Texture similarity', _fmt(textureSimilarity)),
+          _scoreRow('Cooking similarity', _fmt(cookingSimilarity)),
+          _scoreRow('Satiety similarity', _fmt(satietySimilarity)),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFD9D0FA)),
+          const SizedBox(height: 8),
+          _scoreRow('Taste weight', _fmt(tasteWeight)),
+          _scoreRow('Texture weight', _fmt(textureWeight)),
+          _scoreRow('Cooking weight', _fmt(cookingWeight)),
+          _scoreRow('Satiety weight', _fmt(satietyWeight)),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFD9D0FA)),
+          const SizedBox(height: 8),
+          _scoreRow('Total score', hasAnyContribution ? _fmt(totalScore) : '-'),
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 12),
             ...items.map(
               (item) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1762,6 +1820,7 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
                 ),
               ),
             ),
+          ],
           if (_expanded) ...[
             const SizedBox(height: 4),
             GestureDetector(
@@ -1783,6 +1842,43 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  double? _mulOrNull(double? a, double? b) {
+    if (a == null || b == null) return null;
+    return a * b;
+  }
+
+  String _fmt(double? value) {
+    if (value == null) return '-';
+    return value.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  Widget _scoreRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6B5BA6),
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF3B2B6D),
+            ),
+          ),
         ],
       ),
     );
