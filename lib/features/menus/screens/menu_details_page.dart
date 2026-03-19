@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../theme/da_colors.dart';
 import '../../../ui/components/menu_debug_prompt_section.dart';
 import '../domain/ai_menu.dart';
+import 'recipe_details_page.dart';
 
 class MenuDetailsPage extends StatelessWidget {
   final AiMenu menu;
@@ -30,26 +30,6 @@ class MenuDetailsPage extends StatelessWidget {
               color: DAColors.mutedForeground,
             ),
           ),
-          if (kDebugMode) ...[
-            // TODO(debugPrompt): retirer après diagnostic — confirme menu.debugPrompt (pas menu.menu…)
-            Builder(
-              builder: (context) {
-                // ignore: avoid_print
-                print('UI debugPrompt: ${menu.debugPrompt}');
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    menu.debugPrompt ?? 'NO PROMPT FOUND',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.deepOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
           MenuDebugPromptSection(debugPrompt: menu.debugPrompt),
         ],
       ),
@@ -67,67 +47,87 @@ class _MenuItemCard extends StatelessWidget {
     if (item == null) {
       return const SizedBox.shrink();
     }
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEDEBFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => RecipeDetailsPage(
+                dishName: item!.name,
+                previewDescription: item!.description,
+                previewCalories: item!.calories,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFEDEBFF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+                  Text(
+                    item!.label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7C6FE3),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F0FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '≈ ${item!.calories} kcal',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6A5FD3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(Icons.chevron_right, size: 22, color: DAColors.mutedForeground),
+                ],
+              ),
+              const SizedBox(height: 8),
               Text(
-                item!.label,
+                item!.name,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF7C6FE3),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: DAColors.foreground,
                 ),
               ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F0FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '≈ ${item!.calories} kcal',
+              if (item!.description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  item!.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6A5FD3),
+                    fontSize: 13,
+                    height: 1.4,
+                    color: DAColors.mutedForeground,
                   ),
                 ),
-              ),
+              ],
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            item!.name,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: DAColors.foreground,
-            ),
-          ),
-          if (item!.description.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              item!.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color: DAColors.mutedForeground,
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

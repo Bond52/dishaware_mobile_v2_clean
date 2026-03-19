@@ -4,6 +4,7 @@ import '../../../ui/components/menu_debug_prompt_section.dart';
 import '../data/ai_menu_service.dart';
 import '../domain/ai_menu.dart';
 import '../screens/menu_details_page.dart';
+import '../screens/recipe_details_page.dart';
 
 class AiPersonalizedMenuCard extends StatefulWidget {
   const AiPersonalizedMenuCard({super.key});
@@ -242,69 +243,91 @@ class _MenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item == null) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAF9FF),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item!.label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF7C6FE3),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item!.name,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: DAColors.foreground,
-                  ),
-                ),
-                if (item!.description.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    item!.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: DAColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F0FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '≈ ${item!.calories} kcal',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6A5FD3),
+    return Material(
+      color: const Color(0xFFFAF9FF),
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => RecipeDetailsPage(
+                dishName: item!.name,
+                previewDescription: item!.description,
+                previewCalories: item!.calories,
               ),
             ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item!.label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF7C6FE3),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item!.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: DAColors.foreground,
+                      ),
+                    ),
+                    if (item!.description.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        item!.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: DAColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F0FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '≈ ${item!.calories} kcal',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6A5FD3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Icon(Icons.chevron_right, size: 20, color: DAColors.mutedForeground),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
