@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../ui/components/menu_debug_prompt_section.dart';
 
 class AiMenuItem {
@@ -43,6 +45,15 @@ class AiMenu {
   });
 
   factory AiMenu.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('=== PARSING MENU ===');
+      // ignore: avoid_print
+      print('Root keys: ${json.keys.toList()}');
+      // ignore: avoid_print
+      print('debugPrompt (raw): ${json['debugPrompt']}');
+    }
+
     final fromRoot = parseMenuDebugPrompt(json);
 
     final menuRoot = json['menu'] is Map<String, dynamic>
@@ -70,6 +81,12 @@ class AiMenu {
         ? totalCalories.round()
         : int.tryParse(totalCalories.toString());
 
+    final debugPrompt = fromRoot ?? fromMenuRoot ?? fromInner;
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('FINAL debugPrompt: $debugPrompt');
+    }
+
     return AiMenu(
       entree: entreeJson is Map<String, dynamic>
           ? AiMenuItem.fromJson(entreeJson, 'ENTRÉE')
@@ -81,7 +98,7 @@ class AiMenu {
           ? AiMenuItem.fromJson(dessertJson, 'DESSERT')
           : null,
       totalEstimatedCalories: parsedTotal,
-      debugPrompt: fromRoot ?? fromMenuRoot ?? fromInner,
+      debugPrompt: debugPrompt,
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../theme/da_colors.dart';
 import '../../../ui/components/menu_debug_prompt_section.dart';
@@ -29,6 +30,26 @@ class MenuDetailsPage extends StatelessWidget {
               color: DAColors.mutedForeground,
             ),
           ),
+          if (kDebugMode) ...[
+            // TODO(debugPrompt): retirer après diagnostic — confirme menu.debugPrompt (pas menu.menu…)
+            Builder(
+              builder: (context) {
+                // ignore: avoid_print
+                print('UI debugPrompt: ${menu.debugPrompt}');
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    menu.debugPrompt ?? 'NO PROMPT FOUND',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
           MenuDebugPromptSection(debugPrompt: menu.debugPrompt),
         ],
       ),

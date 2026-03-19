@@ -48,6 +48,13 @@ class AiMenuService {
       options: await ApiClient.optionsWithUserId(),
     );
 
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('=== MENU API RESPONSE ===');
+      // ignore: avoid_print
+      print(response.data);
+    }
+
     // Dio peut renvoyer Map<dynamic, dynamic> : éviter `is Map<String, dynamic>`.
     if (response.data is Map) {
       final rawMap = Map<String, dynamic>.from(response.data as Map);
@@ -68,12 +75,15 @@ class AiMenuService {
             )
           : menu;
 
-      if (kDebugMode &&
-          (resolved.debugPrompt == null || resolved.debugPrompt!.trim().isEmpty)) {
-        debugPrint(
-          '[MENU_GENERATE] Aucun debugPrompt parsé. '
-          'Clés enveloppe: ${rawMap.keys.toList()} | clés payload: ${data.keys.toList()}',
-        );
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('SERVICE resolved.debugPrompt: ${resolved.debugPrompt}');
+        if (resolved.debugPrompt == null || resolved.debugPrompt!.trim().isEmpty) {
+          debugPrint(
+            '[MENU_GENERATE] Aucun debugPrompt parsé. '
+            'Clés enveloppe: ${rawMap.keys.toList()} | clés payload: ${data.keys.toList()}',
+          );
+        }
       }
       return resolved;
     }
