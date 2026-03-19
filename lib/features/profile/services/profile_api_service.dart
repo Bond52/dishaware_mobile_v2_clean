@@ -38,6 +38,14 @@ class ProfileApiService {
         '/profile/me',
         options: opts,
       );
+      if (kDebugMode && response.data is Map<String, dynamic>) {
+        final body = response.data as Map<String, dynamic>;
+        final dataNode =
+            (body['data'] is Map<String, dynamic>) ? body['data'] as Map<String, dynamic> : null;
+        final root = dataNode ?? body;
+        debugPrint('PROFILE RECEIVED: $root');
+        debugPrint('ALGO FEATURES: ${root['algorithmFeatures']}');
+      }
       final profile =
           UserProfile.fromJson(response.data as Map<String, dynamic>);
       final responseUserId = (response.data as Map<String, dynamic>)['userId'];
@@ -54,6 +62,14 @@ class ProfileApiService {
             '/profile/$userId',
             options: opts,
           );
+          if (kDebugMode && response.data is Map<String, dynamic>) {
+            final body = response.data as Map<String, dynamic>;
+            final dataNode =
+                (body['data'] is Map<String, dynamic>) ? body['data'] as Map<String, dynamic> : null;
+            final root = dataNode ?? body;
+            debugPrint('PROFILE RECEIVED: $root');
+            debugPrint('ALGO FEATURES: ${root['algorithmFeatures']}');
+          }
           return UserProfile.fromJson(response.data as Map<String, dynamic>);
         } on DioException catch (e2) {
           if (e2.response?.statusCode == 404) return null;

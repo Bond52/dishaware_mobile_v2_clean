@@ -18,6 +18,7 @@ class UserProfile {
   final String diningContext;
   final String explorationAttitude;
   final List<String> profileExplanation;
+  final Map<String, dynamic>? algorithmFeatures;
   final Map<String, double> tasteVectorWeights;
   final List<String> preferredCookingMethods;
   final double? satietyPreference;
@@ -43,6 +44,7 @@ class UserProfile {
     required this.diningContext,
     required this.explorationAttitude,
     required this.profileExplanation,
+    this.algorithmFeatures,
     required this.tasteVectorWeights,
     required this.preferredCookingMethods,
     required this.satietyPreference,
@@ -77,46 +79,64 @@ class UserProfile {
   }
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final dataNode =
+        (json['data'] is Map<String, dynamic>) ? json['data'] as Map<String, dynamic> : null;
+    final root = dataNode ?? json;
+    final algo = (root['algorithmFeatures'] is Map<String, dynamic>)
+        ? root['algorithmFeatures'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
     return UserProfile(
-      userId: json['userId']?.toString(),
-      firstName: (json['firstName'] ?? '') as String,
-      lastName: (json['lastName'] ?? '') as String,
-      dailyCalories: (json['dailyCalories'] ?? 2000) as int,
-      allergies: _stringList(json['allergies'] ?? json['forbiddenIngredients']),
-      diets: (json['diets'] as List<dynamic>? ?? [])
+      userId: root['userId']?.toString(),
+      firstName: (root['firstName'] ?? '') as String,
+      lastName: (root['lastName'] ?? '') as String,
+      dailyCalories: (root['dailyCalories'] ?? 2000) as int,
+      allergies: _stringList(root['allergies'] ?? root['forbiddenIngredients']),
+      diets: (root['diets'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
-      favoriteCuisines: (json['favoriteCuisines'] as List<dynamic>? ?? [])
+      favoriteCuisines: (root['favoriteCuisines'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
-      favoriteIngredients: (json['favoriteIngredients'] as List<dynamic>? ?? [])
+      favoriteIngredients: (root['favoriteIngredients'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
-      activityLevel: (json['activityLevel'] ?? '') as String,
-      orderFrequency: (json['orderFrequency'] ?? '') as String,
-      tasteIntensity: (json['tasteIntensity'] ?? '') as String,
-      tasteProfile: (json['tasteProfile'] ?? '') as String,
-      texturePreference: (json['texturePreference'] ?? '') as String,
-      satietyAfterMeal: (json['satietyAfterMeal'] ?? '') as String,
-      diningContext: (json['diningContext'] ?? '') as String,
-      explorationAttitude: (json['explorationAttitude'] ?? '') as String,
-      profileExplanation: (json['profileExplanation'] as List<dynamic>? ?? [])
+      activityLevel: (root['activityLevel'] ?? '') as String,
+      orderFrequency: (root['orderFrequency'] ?? '') as String,
+      tasteIntensity: (root['tasteIntensity'] ?? '') as String,
+      tasteProfile: (root['tasteProfile'] ?? '') as String,
+      texturePreference: (root['texturePreference'] ?? '') as String,
+      satietyAfterMeal: (root['satietyAfterMeal'] ?? '') as String,
+      diningContext: (root['diningContext'] ?? '') as String,
+      explorationAttitude: (root['explorationAttitude'] ?? '') as String,
+      profileExplanation: (root['profileExplanation'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      algorithmFeatures: algo.isEmpty ? null : Map<String, dynamic>.from(algo),
       tasteVectorWeights: _doubleMap(
-        json['taste_vector_weights'] ?? json['tasteVectorWeights'],
+        algo['taste_vector_weights'] ??
+            root['taste_vector_weights'] ??
+            root['tasteVectorWeights'],
       ),
       preferredCookingMethods: _stringList(
-        json['preferred_cooking_methods'] ?? json['preferredCookingMethods'],
+        algo['preferred_cooking_methods'] ??
+            root['preferred_cooking_methods'] ??
+            root['preferredCookingMethods'],
       ),
       satietyPreference: _doubleOrNull(
-        json['satiety_preference'] ?? json['satietyPreference'],
+        algo['satiety_preference_normalized'] ??
+            algo['satiety_preference'] ??
+            root['satiety_preference_normalized'] ??
+            root['satiety_preference'] ??
+            root['satietyPreference'],
       ),
       texturePreferences: _doubleMap(
-        json['texture_preferences'] ?? json['texturePreferences'],
+        algo['texture_preferences'] ??
+            root['texture_preferences'] ??
+            root['texturePreferences'],
       ),
       hasCompletedOnboarding:
-          (json['hasCompletedOnboarding'] ?? false) as bool,
+          (root['hasCompletedOnboarding'] ?? false) as bool,
     );
   }
 
@@ -140,6 +160,7 @@ class UserProfile {
       'diningContext': diningContext,
       'explorationAttitude': explorationAttitude,
       'profileExplanation': profileExplanation,
+      if (algorithmFeatures != null) 'algorithmFeatures': algorithmFeatures,
       'taste_vector_weights': tasteVectorWeights,
       'preferred_cooking_methods': preferredCookingMethods,
       'satiety_preference': satietyPreference,

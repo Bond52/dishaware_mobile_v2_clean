@@ -8,6 +8,7 @@ import '../../notifications/notification_settings_widget.dart';
 import '../../../main.dart';
 import '../../onboarding/providers/auth_provider.dart';
 import '../../../router_refresh.dart';
+import '../models/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'profile_comparison_screen.dart';
 import 'share_profile_screen.dart';
@@ -287,11 +288,7 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               _TasteProfileSummaryCard(
-                explanations: profile.profileExplanation,
-                tasteVectorWeights: profile.tasteVectorWeights,
-                preferredCookingMethods: profile.preferredCookingMethods,
-                satietyPreference: profile.satietyPreference,
-                texturePreferences: profile.texturePreferences,
+                profile: profile,
               ),
               const SizedBox(height: 24),
             ],
@@ -1651,18 +1648,10 @@ class _SelectableCard extends StatelessWidget {
 }
 
 class _TasteProfileSummaryCard extends StatefulWidget {
-  final List<String> explanations;
-  final Map<String, double> tasteVectorWeights;
-  final List<String> preferredCookingMethods;
-  final double? satietyPreference;
-  final Map<String, double> texturePreferences;
+  final UserProfile profile;
 
   const _TasteProfileSummaryCard({
-    required this.explanations,
-    required this.tasteVectorWeights,
-    required this.preferredCookingMethods,
-    required this.satietyPreference,
-    required this.texturePreferences,
+    required this.profile,
   });
 
   @override
@@ -1675,17 +1664,27 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
 
   @override
   Widget build(BuildContext context) {
-    final items = widget.explanations;
-    final tasteWeight = widget.tasteVectorWeights['taste'];
-    final textureWeight = widget.tasteVectorWeights['texture'];
-    final cookingWeight = widget.tasteVectorWeights['cooking'];
-    final satietyWeight = widget.tasteVectorWeights['satiety'];
+    final profile = widget.profile;
+    final items = profile.profileExplanation;
+    final algo = profile.algorithmFeatures;
+    debugPrint('UI PROFILE: ${profile.toJson()}');
+    debugPrint('UI ALGO: $algo');
 
-    final tasteSimilarity = (widget.tasteVectorWeights.isNotEmpty) ? 1.0 : null;
-    final textureSimilarity = (widget.texturePreferences.isNotEmpty) ? 1.0 : null;
-    final cookingSimilarity =
-        widget.preferredCookingMethods.isNotEmpty ? 1.0 : null;
-    final satietySimilarity = widget.satietyPreference;
+    final weights = _extractWeights(algo?['taste_vector_weights']);
+    final textures = _extractStringList(algo?['texture_preferences']);
+    final cooking = _extractStringList(algo?['preferred_cooking_methods']);
+    final satietySimilarity =
+        _toDouble(algo?['satiety_preference_normalized']) ??
+            _toDouble(algo?['satiety_preference']);
+
+    final tasteWeight = weights[0];
+    final textureWeight = weights[1];
+    final cookingWeight = weights[2];
+    final satietyWeight = weights[3];
+
+    final tasteSimilarity = (tasteWeight != null) ? 1.0 : null;
+    final textureSimilarity = textures.isNotEmpty ? 1.0 : null;
+    final cookingSimilarity = cooking.isNotEmpty ? 1.0 : null;
 
     final tasteContribution = _mulOrNull(tasteWeight, tasteSimilarity);
     final textureContribution = _mulOrNull(textureWeight, textureSimilarity);
@@ -1845,6 +1844,45 @@ class _TasteProfileSummaryCardState extends State<_TasteProfileSummaryCard> {
         ],
       ),
     );
+  }
+
+  List<double?> _extractWeights(dynamic raw) {
+    if (raw is List) {
+      return [
+        raw.length > 0 ? _toDouble(raw[0]) : null,
+        raw.length > 1 ? _toDouble(raw[1]) : null,
+        raw.length > 2 ? _toDouble(raw[2]) : null,
+        raw.length > 3 ? _toDouble(raw[3]) : null,
+      ];
+    }
+    if (raw is Map) {
+      final map = raw.map(
+        (k, v) => MapEntry(k.toString().toLowerCase(), _toDouble(v)),
+      );
+      return [
+        map['taste'],
+        map['texture'],
+        map['cooking'],
+        map['satiety'],
+      ];
+    }
+    return const [null, null, null, null];
+  }
+
+  List<String> _extractStringList(dynamic raw) {
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList();
+    }
+    if (raw is Map) {
+      return raw.keys.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList();
+    }
+    return const [];
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   double? _mulOrNull(double? a, double? b) {
