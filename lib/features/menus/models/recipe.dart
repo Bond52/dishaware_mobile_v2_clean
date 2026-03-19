@@ -1,5 +1,5 @@
-/// Détail recette renvoyé par l’API (champs optionnels tolérés).
-class MenuRecipeDetail {
+/// Recette renvoyée par `POST /api/dishes/recipe` dans `response.data['recipe']`.
+class Recipe {
   final String id;
   final String title;
   final String description;
@@ -11,7 +11,7 @@ class MenuRecipeDetail {
   final String? nutritionSummary;
   final int? calories;
 
-  const MenuRecipeDetail({
+  const Recipe({
     this.id = '',
     required this.title,
     this.description = '',
@@ -24,25 +24,11 @@ class MenuRecipeDetail {
     this.calories,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'ingredients': ingredients,
-        'steps': steps,
-        'cookingTime': cookingTime,
-        'difficulty': difficulty,
-        'tips': tips,
-        'nutritionSummary': nutritionSummary,
-        'calories': calories,
-      };
+  factory Recipe.fromJson(Map<String, dynamic> json) {
+    final nested = json['data'];
+    final root = nested is Map ? Map<String, dynamic>.from(nested) : json;
 
-  factory MenuRecipeDetail.fromJson(Map<String, dynamic> json) {
-    final root = json['data'] is Map
-        ? Map<String, dynamic>.from(json['data'] as Map)
-        : json;
-
-    return MenuRecipeDetail(
+    return Recipe(
       id: root['id']?.toString() ?? '',
       title: (root['name'] ?? root['title'] ?? root['dishName'] ?? '').toString(),
       description: (root['description'] ?? root['details'] ?? '').toString(),
