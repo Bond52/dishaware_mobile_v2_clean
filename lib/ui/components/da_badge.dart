@@ -7,6 +7,8 @@ enum DABadgeVariant {
   success,      // ✅ AJOUT SANS RÉGRESSION
   destructive,
   outline,
+  /// Tags système DishAware (régimes, cuisines sur la fiche plat).
+  system,
 }
 
 class DABadge extends StatelessWidget {
@@ -48,8 +50,12 @@ class DABadge extends StatelessWidget {
         border = const BorderSide(color: DAColors.border);
         break;
 
+      case DABadgeVariant.system:
+        background = const Color(0xFF2196F3);
+        foreground = Colors.white;
+        break;
+
       case DABadgeVariant.defaultBadge:
-      default:
         background = DAColors.muted;
         foreground = DAColors.foreground;
     }

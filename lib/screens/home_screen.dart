@@ -28,6 +28,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<RecommendedDish> _recommendations = [];
   bool _isLoadingRecommendations = true;
+  bool _refreshingAfterFeedback = false;
   final Set<String> _feedbackSending = {};
 
   @override
@@ -134,19 +135,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? UserInteractionState.liked
                   : UserInteractionState.disliked,
             );
+      }
 
+      if (mounted) setState(() => _refreshingAfterFeedback = true);
+      try {
+        await context.read<ProfileProvider>().loadMyProfile();
+        if (!mounted) return;
+        await _loadRecommendations();
+      } finally {
+        if (mounted) setState(() => _refreshingAfterFeedback = false);
+      }
+
+      if (!mounted) return;
+      if (learningApplied || alreadyRecorded) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              liked
-                  ? 'On affine tes recommandations'
-                  : 'On évitera ce type de plat',
+              learningApplied
+                  ? 'DishAware apprend ton goût — profil et suggestions actualisés'
+                  : 'Préférence déjà enregistrée — profil actualisé',
             ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-
-      await _loadRecommendations();
     } catch (e) {
       debugPrint('❌ Erreur feedback: $e');
     } finally {
@@ -405,6 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (_refreshingAfterFeedback) ...[
+          const LinearProgressIndicator(minHeight: 3),
+          const SizedBox(height: 12),
+        ],
         if (_isLoadingRecommendations)
           const Text(
             'Nous apprenons encore vos goûts',
@@ -438,7 +454,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DishDetailsScreen(dish: dish),
+                        builder: (context) => DishDetailsScreen(
+                          dish: dish,
+                          onLearningApplied: () => _loadRecommendations(),
+                        ),
                       ),
                     );
                   },

@@ -8,6 +8,7 @@ import '../features/recommendations/widgets/recommendation_card.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 import '../services/feedback_service.dart';
 import '../services/favorites_service.dart';
+import '../features/profile/providers/profile_provider.dart';
 import 'dish_details_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -172,13 +173,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ? UserInteractionState.liked
                   : UserInteractionState.disliked,
             );
+      }
+
+      await context.read<ProfileProvider>().loadMyProfile();
+      if (!mounted) return;
+
+      if (learningApplied || alreadyRecorded) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              liked
-                  ? 'On affine tes recommandations'
-                  : 'On évitera ce type de plat',
+              learningApplied
+                  ? 'DishAware apprend ton goût — profil actualisé'
+                  : 'Préférence déjà enregistrée — profil actualisé',
             ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }

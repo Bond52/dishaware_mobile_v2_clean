@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../api/api_client.dart';
 import '../../../utils/tag_translations.dart';
 import '../domain/recommended_dish.dart';
+import '../models/dish_tag.dart';
+import 'dish_tag_pill.dart';
 import '../../../../theme/da_colors.dart';
 
-/// Section "Mes tags pour ce plat" : liste de chips + champ d'ajout avec autosuggestion.
-/// GET /api/users/me/tag-suggestions?q=... (debounce), POST /api/dishes/:dishId/tags pour ajouter.
+/// Section "Mes tags pour ce plat" : pastilles colorées + ajout avec sentiment.
+/// GET suggestions, GET/POST /api/dishes/:dishId/tags
 class UserTagSection extends StatefulWidget {
   final RecommendedDish dish;
 
@@ -22,14 +26,142 @@ class _UserTagSectionState extends State<UserTagSection> {
   final TextEditingController _tagController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  List<String> _tags = [];
+  List<DishTag> _tags = [];
   List<String> _suggestions = [];
   bool _suggestionsLoading = false;
   bool _tagsLoading = true;
   Timer? _debounceTimer;
   bool _addSending = false;
+  TagSentiment _pendingSentiment = TagSentiment.positive;
 
   static const Duration _debounceDuration = Duration(milliseconds: 300);
+
+  /// Sentiments par libellé (GET API renvoie souvent des strings → positive par défaut).
+  static const String _prefsSentimentPrefix = 'dish_user_tag_sentiment_v1_';
+
+  String _tagKey(DishTag t) {
+    if (t.type == DishTagType.system) {
+      return '${t.type.name}:${t.label.toLowerCase()}';
+    }
+    return '${t.type.name}:${t.label.toLowerCase()}:${t.sentiment.name}';
+  }
+
+  Future<Map<String, String>> _loadSentimentStore(String dishId) async {
+    if (dishId.isEmpty) return {};
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_prefsSentimentPrefix$dishId');
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map(
+          (k, v) => MapEntry(k.toString().toLowerCase(), v.toString().toLowerCase()),
+        );
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  Future<void> _saveSentimentStore(String dishId, Map<String, String> map) async {
+    if (dishId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (map.isEmpty) {
+      await prefs.remove('$_prefsSentimentPrefix$dishId');
+    } else {
+      await prefs.setString('$_prefsSentimentPrefix$dishId', jsonEncode(map));
+    }
+  }
+
+  Future<void> _rememberTagSentiment(
+    String dishId,
+    String labelLower,
+    TagSentiment sentiment,
+  ) async {
+    final map = await _loadSentimentStore(dishId);
+    map[labelLower.toLowerCase()] = sentiment.name;
+    await _saveSentimentStore(dishId, map);
+  }
+
+  Future<void> _forgetTagSentiment(String dishId, String labelLower) async {
+    final map = await _loadSentimentStore(dishId);
+    map.remove(labelLower.toLowerCase());
+    await _saveSentimentStore(dishId, map);
+  }
+
+  TagSentiment? _sentimentFromName(String? name) {
+    if (name == null || name.isEmpty) return null;
+    for (final s in TagSentiment.values) {
+      if (s.name == name) return s;
+    }
+    return null;
+  }
+
+  /// Réapplique le sentiment enregistré sur l’appareil (corrige le vert par défaut après navigation).
+  Future<List<DishTag>> _applyStoredSentiments(
+    String dishId,
+    List<DishTag> tags,
+  ) async {
+    if (dishId.isEmpty) return tags;
+    final store = await _loadSentimentStore(dishId);
+    if (store.isEmpty) return tags;
+    return tags.map((t) {
+      if (t.type != DishTagType.user) return t;
+      final stored = _sentimentFromName(store[t.label.toLowerCase()]);
+      if (stored == null) return t;
+      return DishTag(label: t.label, type: t.type, sentiment: stored);
+    }).toList();
+  }
+
+  List<DishTag> _mergeTags(Iterable<DishTag> a, Iterable<DishTag> b) {
+    final map = <String, DishTag>{};
+    for (final t in a) {
+      if (t.label.isNotEmpty) map[_tagKey(t)] = t;
+    }
+    for (final t in b) {
+      if (t.label.isNotEmpty) map[_tagKey(t)] = t;
+    }
+    final list = map.values.toList()
+      ..sort((x, y) => x.label.toLowerCase().compareTo(y.label.toLowerCase()));
+    return list;
+  }
+
+  /// Retire un tag utilisateur (UI uniquement). Inclut sentiment pour distinguer les doublons de libellé.
+  bool _sameTag(DishTag a, DishTag b) =>
+      a.type == b.type &&
+      a.label.toLowerCase() == b.label.toLowerCase() &&
+      a.sentiment == b.sentiment;
+
+  void _removeUserTag(DishTag tag) {
+    if (tag.type != DishTagType.user) return;
+    final dishId = widget.dish.dishId;
+    final removed = DishTag(
+      label: tag.label,
+      type: tag.type,
+      sentiment: tag.sentiment,
+    );
+    setState(() {
+      _tags = _tags.where((t) => !_sameTag(t, removed)).toList();
+    });
+    unawaited(_forgetTagSentiment(dishId, removed.label));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Tag retiré'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Annuler',
+          onPressed: () {
+            if (!mounted) return;
+            unawaited(_rememberTagSentiment(dishId, removed.label.toLowerCase(), removed.sentiment));
+            setState(() {
+              _tags = _mergeTags(_tags, [removed]);
+            });
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -38,7 +170,6 @@ class _UserTagSectionState extends State<UserTagSection> {
     _loadTags();
   }
 
-  /// Charge les tags déjà enregistrés pour ce plat (persistance).
   Future<void> _loadTags() async {
     final dishId = widget.dish.dishId;
     if (dishId.isEmpty) {
@@ -52,17 +183,17 @@ class _UserTagSectionState extends State<UserTagSection> {
       );
       if (!mounted) return;
       final data = response.data;
-      List<String> list = [];
+      List<dynamic> raw = [];
       if (data is List) {
-        list = data.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+        raw = data;
       } else if (data is Map && data['tags'] is List) {
-        list = (data['tags'] as List).map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+        raw = data['tags'] as List<dynamic>;
       }
-      // Fusionner avec les tags déjà affichés pour ne pas écraser un ajout local (race condition).
-      final merged = <String>{..._tags, ...list};
-      final sorted = merged.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final parsed = raw.map(DishTag.fromDynamic).where((t) => t.label.isNotEmpty).toList();
+      final withSentiment = await _applyStoredSentiments(dishId, parsed);
+      if (!mounted) return;
       setState(() {
-        _tags = sorted;
+        _tags = _mergeTags(_tags, withSentiment);
         _tagsLoading = false;
       });
     } catch (_) {
@@ -115,42 +246,61 @@ class _UserTagSectionState extends State<UserTagSection> {
     }
   }
 
-  Future<void> _addTag(String tag) async {
+  Future<void> _addTag(String tag, TagSentiment sentiment) async {
     final normalized = tag.trim().toLowerCase();
     if (normalized.isEmpty) return;
-    if (_tags.any((t) => t.toLowerCase() == normalized)) return;
+    if (_tags.any((t) =>
+        t.type == DishTagType.user &&
+        t.label.toLowerCase() == normalized)) {
+      return;
+    }
     if (_addSending) return;
     final dishId = widget.dish.dishId;
     if (dishId.isEmpty) return;
 
-    // Mise à jour optimiste : afficher le tag tout de suite.
+    final optimistic = DishTag(
+      label: normalized,
+      type: DishTagType.user,
+      sentiment: sentiment,
+    );
+
     setState(() {
       _addSending = true;
-      _tags = [..._tags, normalized]..sort((a, b) => a.compareTo(b));
+      _tags = _mergeTags(_tags, [optimistic]);
       _tagController.clear();
       _suggestions = [];
     });
+
     try {
       await ApiClient.dio.post(
         '/dishes/$dishId/tags',
-        data: {'tag': normalized},
+        data: {
+          'tag': normalized,
+          'type': 'user',
+          'sentiment': sentiment.name,
+        },
         options: await ApiClient.optionsWithUserId(),
       );
+      if (!mounted) return;
+      await _rememberTagSentiment(dishId, normalized, sentiment);
       if (!mounted) return;
       setState(() => _addSending = false);
     } catch (_) {
       if (!mounted) return;
-      // En cas d'erreur API, retirer le tag affiché.
       setState(() {
         _addSending = false;
-        _tags = _tags.where((t) => t.toLowerCase() != normalized).toList();
+        _tags = _tags
+            .where((t) =>
+                !(t.type == DishTagType.user &&
+                    t.label.toLowerCase() == normalized))
+            .toList();
       });
     }
   }
 
   void _submitTag() {
     final value = _tagController.text.trim();
-    if (value.isNotEmpty) _addTag(value);
+    if (value.isNotEmpty) _addTag(value, _pendingSentiment);
   }
 
   @override
@@ -166,20 +316,7 @@ class _UserTagSectionState extends State<UserTagSection> {
             color: DAColors.foreground,
           ),
         ),
-        if (_tagsLoading)
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-          )
-        else if (_tags.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _tags.map((tag) => _buildTagChip(tag)).toList(),
-          ),
-        ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         const Text(
           '+ Ajouter un tag',
           style: TextStyle(
@@ -189,6 +326,49 @@ class _UserTagSectionState extends State<UserTagSection> {
           ),
         ),
         const SizedBox(height: 8),
+        Text(
+          'Sentiment du tag',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: DAColors.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: _SentimentChoice(
+                label: 'Positif',
+                icon: Icons.thumb_up_outlined,
+                selected: _pendingSentiment == TagSentiment.positive,
+                selectedColor: const Color(0xFF16A34A),
+                onTap: () => setState(() => _pendingSentiment = TagSentiment.positive),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SentimentChoice(
+                label: 'Neutre',
+                icon: Icons.remove_circle_outline,
+                selected: _pendingSentiment == TagSentiment.neutral,
+                selectedColor: const Color(0xFFF59E0B),
+                onTap: () => setState(() => _pendingSentiment = TagSentiment.neutral),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SentimentChoice(
+                label: 'Négatif',
+                icon: Icons.thumb_down_outlined,
+                selected: _pendingSentiment == TagSentiment.negative,
+                selectedColor: const Color(0xFFDC2626),
+                onTap: () => setState(() => _pendingSentiment = TagSentiment.negative),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -210,17 +390,47 @@ class _UserTagSectionState extends State<UserTagSection> {
             IconButton.filled(
               onPressed: _addSending ? null : _submitTag,
               icon: _addSending
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.thumb_up, size: 20),
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_rounded, size: 22),
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
+                backgroundColor: switch (_pendingSentiment) {
+                  TagSentiment.positive => const Color(0xFF16A34A),
+                  TagSentiment.neutral => const Color(0xFFF59E0B),
+                  TagSentiment.negative => const Color(0xFFDC2626),
+                },
                 foregroundColor: Colors.white,
               ),
             ),
           ],
         ),
+        if (_tagsLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 14),
+            child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else if (_tags.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _tags
+                .map(
+                  (t) => DishTagPill(
+                    tag: t,
+                    onRemove: t.type == DishTagType.user
+                        ? () => _removeUserTag(t)
+                        : null,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
         if (_suggestions.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             'Suggestions',
             style: TextStyle(fontSize: 12, color: DAColors.mutedForeground),
@@ -230,9 +440,13 @@ class _UserTagSectionState extends State<UserTagSection> {
             spacing: 6,
             runSpacing: 6,
             children: _suggestions
-                .where((s) => !_tags.any((t) => t.toLowerCase() == s.toLowerCase()))
+                .where((s) => !_tags.any(
+                      (t) =>
+                          t.type == DishTagType.user &&
+                          t.label.toLowerCase() == s.toLowerCase(),
+                    ))
                 .map((s) => InkWell(
-                      onTap: () => _addTag(s),
+                      onTap: () => _addTag(s, _pendingSentiment),
                       borderRadius: BorderRadius.circular(16),
                       child: Chip(
                         label: Text(translateTag(s), style: const TextStyle(fontSize: 12)),
@@ -251,18 +465,56 @@ class _UserTagSectionState extends State<UserTagSection> {
       ],
     );
   }
+}
 
-  Widget _buildTagChip(String tag) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: DAColors.muted.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: DAColors.border),
-      ),
-      child: Text(
-        translateTag(tag),
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DAColors.foreground),
+class _SentimentChoice extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color selectedColor;
+  final VoidCallback onTap;
+
+  const _SentimentChoice({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? selectedColor.withOpacity(0.15) : DAColors.inputBackground,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? selectedColor : DAColors.border,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: selected ? selectedColor : DAColors.mutedForeground),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? selectedColor : DAColors.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

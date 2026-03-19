@@ -9,6 +9,7 @@ import '../theme/da_colors.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 import '../features/recommendations/providers/user_dish_interactions_store.dart';
 import '../features/recommendations/widgets/user_tag_section.dart';
+import '../features/profile/providers/profile_provider.dart';
 import '../services/feedback_service.dart';
 import '../features/favorites/providers/favorites_store.dart';
 import '../services/favorites_service.dart';
@@ -28,7 +29,15 @@ class _PreparationTest {
 class DishDetailsScreen extends StatefulWidget {
   final RecommendedDish? dish;
 
-  const DishDetailsScreen({super.key, this.dish});
+  /// Après un feedback pris en compte : rechargement profil côté détail ;
+  /// optionnellement rafraîchir les recommandations (ex. écran d’accueil).
+  final Future<void> Function()? onLearningApplied;
+
+  const DishDetailsScreen({
+    super.key,
+    this.dish,
+    this.onLearningApplied,
+  });
 
   @override
   State<DishDetailsScreen> createState() => _DishDetailsScreenState();
@@ -309,7 +318,10 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: diets
-                  .map((diet) => DABadge(label: translateTag(diet)))
+                  .map((diet) => DABadge(
+                        label: translateTag(diet),
+                        variant: DABadgeVariant.system,
+                      ))
                   .toList(),
             ),
             const SizedBox(height: 12),
@@ -328,7 +340,10 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: cuisines
-                  .map((cuisine) => DABadge(label: translateTag(cuisine)))
+                  .map((cuisine) => DABadge(
+                        label: translateTag(cuisine),
+                        variant: DABadgeVariant.system,
+                      ))
                   .toList(),
             ),
           ],
@@ -723,20 +738,39 @@ class _DishDetailsScreenState extends State<DishDetailsScreen> {
           context
               .read<UserDishInteractionsStore>()
               .setStateForDish(dishId, nextState);
+        } else {
+          setState(() => _preparationState = nextState);
+        }
+      }
+
+      await context.read<ProfileProvider>().loadMyProfile();
+      if (!mounted) return;
+      if (widget.onLearningApplied != null) {
+        await widget.onLearningApplied!();
+      }
+
+      if (!mounted) return;
+      if (learningApplied || alreadyRecorded) {
+        if (feedbackType == 'concept') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                liked
-                    ? 'On affine tes recommandations'
-                    : 'On évitera ce type de plat',
+                learningApplied
+                    ? 'DishAware apprend ton goût — profil actualisé'
+                    : 'Préférence déjà enregistrée — profil actualisé',
               ),
+              duration: const Duration(seconds: 3),
             ),
           );
         } else {
-          setState(() => _preparationState = nextState);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Avis enregistré pour cette préparation'),
+            SnackBar(
+              content: Text(
+                learningApplied
+                    ? 'DishAware apprend ton goût — profil actualisé'
+                    : 'Avis déjà enregistré pour cette préparation',
+              ),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
