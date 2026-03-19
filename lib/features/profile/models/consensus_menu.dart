@@ -1,3 +1,5 @@
+import '../../../ui/components/menu_debug_prompt_section.dart';
+
 class ConsensusMenu {
   final String starter;
   final String main;
@@ -6,6 +8,7 @@ class ConsensusMenu {
   final String explanation;
   final String adjustmentA;
   final String adjustmentB;
+  final String? debugPrompt;
 
   const ConsensusMenu({
     required this.starter,
@@ -15,6 +18,7 @@ class ConsensusMenu {
     required this.explanation,
     required this.adjustmentA,
     required this.adjustmentB,
+    this.debugPrompt,
   });
 
   factory ConsensusMenu.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,7 @@ class ConsensusMenu {
       explanation: _str(map, ['explanation', 'explication']),
       adjustmentA: _str(map, ['adjustmentA', 'ajustementA', 'adjustment_a']),
       adjustmentB: _str(map, ['adjustmentB', 'ajustementB', 'adjustment_b']),
+      debugPrompt: parseMenuDebugPrompt(map),
     );
   }
 

@@ -1,3 +1,5 @@
+import '../ui/components/menu_debug_prompt_section.dart';
+
 /// Profil invité pour le Mode Hôte (affichage + id pour l'API).
 class HostGuestProfile {
   final String userId;
@@ -149,11 +151,13 @@ class GroupMenuResult {
   final GroupMenuResultMenu menu;
   final String explanation;
   final List<String> adjustments;
+  final String? debugPrompt;
 
   const GroupMenuResult({
     required this.menu,
     this.explanation = '',
     this.adjustments = const [],
+    this.debugPrompt,
   });
 
   /// Nombre de champs non vides dans menu (starter, main, alternative, dessert).
@@ -181,10 +185,16 @@ class GroupMenuResult {
         }
       }
     }
+    final nestedMenu = json['menu'];
+    final fromNested = nestedMenu is Map<String, dynamic>
+        ? parseMenuDebugPrompt(Map<String, dynamic>.from(nestedMenu))
+        : null;
+
     return GroupMenuResult(
       menu: menu,
       explanation: explanation,
       adjustments: adjustments,
+      debugPrompt: parseMenuDebugPrompt(json) ?? fromNested,
     );
   }
 }

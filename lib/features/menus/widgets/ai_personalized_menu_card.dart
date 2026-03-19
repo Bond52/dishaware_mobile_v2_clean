@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/da_colors.dart';
+import '../../../ui/components/menu_debug_prompt_section.dart';
 import '../data/ai_menu_service.dart';
 import '../domain/ai_menu.dart';
 import '../screens/menu_details_page.dart';
@@ -173,6 +174,18 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
           const SizedBox(height: 12),
           _MenuItemCard(item: _menu!.dessert),
           const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Total estimé : ${_menu!.totalCalories} kcal',
+              style: const TextStyle(
+                fontSize: 12,
+                color: DAColors.mutedForeground,
+              ),
+            ),
+          ),
+          MenuDebugPromptSection(debugPrompt: _menu!.debugPrompt),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -210,17 +223,6 @@ class _AiPersonalizedMenuCardState extends State<AiPersonalizedMenuCard>
                 onTap: () => setState(() => _isFavorite = !_isFavorite),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Total estimé : ${_menu!.totalCalories} kcal',
-              style: const TextStyle(
-                fontSize: 12,
-                color: DAColors.mutedForeground,
-              ),
-            ),
           ),
         ],
       ),

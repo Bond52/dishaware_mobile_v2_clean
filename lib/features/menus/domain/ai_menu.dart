@@ -1,3 +1,5 @@
+import '../../../ui/components/menu_debug_prompt_section.dart';
+
 class AiMenuItem {
   final String label;
   final String name;
@@ -30,20 +32,29 @@ class AiMenu {
   final AiMenuItem? plat;
   final AiMenuItem? dessert;
   final int? totalEstimatedCalories;
+  final String? debugPrompt;
 
   const AiMenu({
     required this.entree,
     required this.plat,
     required this.dessert,
     this.totalEstimatedCalories,
+    this.debugPrompt,
   });
 
   factory AiMenu.fromJson(Map<String, dynamic> json) {
-    final menuRoot =
-        json['menu'] is Map<String, dynamic> ? json['menu'] : json;
+    final fromRoot = parseMenuDebugPrompt(json);
+
+    final menuRoot = json['menu'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(json['menu'] as Map)
+        : Map<String, dynamic>.from(json);
+
     final innerMenu = menuRoot['menu'] is Map<String, dynamic>
-        ? menuRoot['menu']
+        ? Map<String, dynamic>.from(menuRoot['menu'] as Map)
         : menuRoot;
+
+    final fromMenuRoot = parseMenuDebugPrompt(menuRoot);
+    final fromInner = parseMenuDebugPrompt(innerMenu);
 
     final entreeJson =
         innerMenu['entree'] ?? innerMenu['entry'] ?? innerMenu['starter'];
@@ -70,6 +81,7 @@ class AiMenu {
           ? AiMenuItem.fromJson(dessertJson, 'DESSERT')
           : null,
       totalEstimatedCalories: parsedTotal,
+      debugPrompt: fromRoot ?? fromMenuRoot ?? fromInner,
     );
   }
 

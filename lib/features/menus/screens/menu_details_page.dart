@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/da_colors.dart';
+import '../../../ui/components/menu_debug_prompt_section.dart';
 import '../domain/ai_menu.dart';
 
 class MenuDetailsPage extends StatelessWidget {
@@ -28,6 +29,7 @@ class MenuDetailsPage extends StatelessWidget {
               color: DAColors.mutedForeground,
             ),
           ),
+          MenuDebugPromptSection(debugPrompt: menu.debugPrompt),
         ],
       ),
     );

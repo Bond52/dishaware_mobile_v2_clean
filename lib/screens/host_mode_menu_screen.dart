@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/da_colors.dart';
+import '../ui/components/menu_debug_prompt_section.dart';
 import 'host_mode_models.dart';
 
 class HostModeMenuScreen extends StatelessWidget {
@@ -85,6 +85,7 @@ class HostModeMenuScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     _AdjustmentsSection(adjustments: menuResult.adjustments),
                   ],
+                  MenuDebugPromptSection(debugPrompt: menuResult.debugPrompt),
                   const SizedBox(height: 24),
                 ],
               ),

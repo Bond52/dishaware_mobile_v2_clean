@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/da_colors.dart';
+import '../../../ui/components/menu_debug_prompt_section.dart';
 import '../models/consensus_menu.dart';
 
 class ConsensusMenuScreen extends StatelessWidget {
@@ -65,6 +66,7 @@ class ConsensusMenuScreen extends StatelessWidget {
               if (menu.adjustmentB.isNotEmpty)
                 _AdjustmentCard(label: 'Profil B', text: menu.adjustmentB),
             ],
+            MenuDebugPromptSection(debugPrompt: menu.debugPrompt),
             const SizedBox(height: 32),
           ],
         ),
