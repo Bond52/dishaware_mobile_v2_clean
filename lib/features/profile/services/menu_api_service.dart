@@ -28,18 +28,22 @@ class MenuApiService {
 
   /// Génère un menu pour un groupe.
   /// POST `/menu/generate-group`
-  /// Body: `{ "guest_profiles": [...], "ingredients": [...] }`.
-  /// `guest_profiles` = liste d’identifiants pour résoudre chaque **UserProfile** (souvent les
-  /// **`userId`**, hôte + invités — au moins 2 entrées). À aligner avec la résolution côté serveur.
+  /// Body: `{ "profileIds": [...], "ingredients": [...] }`.
+  /// `profileIds` = identifiants des documents **UserProfile** (Mongo `_id` / `profileId` en priorité,
+  /// sinon `userId` si c’est ce que le serveur résout — hôte + invités, au moins 2 entrées).
   /// Réponse attendue: { "menu": {...}, "explanation": "...", "adjustments": [...] }
   static Future<GroupMenuResult> generateGroupConsensusMenu(
-    List<String> guestProfiles, {
+    List<String> profileIds, {
     List<String> ingredients = const [],
   }) async {
+    debugPrint(
+      '[MENU_GROUP] POST /menu/generate-group — envoi: profileIds=$profileIds '
+      '(count=${profileIds.length}), ingredients count=${ingredients.length}',
+    );
     final response = await ApiClient.dio.post(
       '/menu/generate-group',
       data: {
-        'guest_profiles': guestProfiles,
+        'profileIds': profileIds,
         'ingredients': ingredients,
       },
       options: await ApiClient.optionsWithUserId(),

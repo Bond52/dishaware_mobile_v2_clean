@@ -22,7 +22,7 @@ class HostGuestProfile {
     this.favoriteCuisines = const [],
   });
 
-  /// Identifiant backend pour `guest_profiles` : document **UserProfile** (`profileId` / MongoDB `_id`)
+  /// Identifiant backend pour `profileIds` : document **UserProfile** (`profileId` / MongoDB `_id`)
   /// en priorité, sinon `userId` si c’est ce que le serveur attend.
   String? get id {
     final p = profileId?.trim();
@@ -31,8 +31,8 @@ class HostGuestProfile {
     return u.isEmpty ? null : u;
   }
 
-  /// `userId` métier (auth / champ `userId` du profil) — souvent ce que le backend utilise pour
-  /// résoudre les documents dans `POST /menu/generate-group`.
+  /// `userId` métier (auth / champ `userId` du profil) — utilisé si le backend résout par userId
+  /// plutôt que par `_id` de profil dans `POST /menu/generate-group`.
   String? get userIdForApi {
     final u = userId.trim();
     return u.isEmpty ? null : u;

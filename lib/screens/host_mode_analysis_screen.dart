@@ -205,15 +205,13 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     });
   }
 
-  /// Valeurs pour `guest_profiles` : **tous les participants** (hôte + invités), par **`userId`**.
-  ///
-  /// Le backend local renvoie « Au moins 2 profils requis » si moins de 2 profils sont résolus :
-  /// il semble résoudre par `userId`, pas par `_id` Mongo — d’où l’envoi des `userId` plutôt que des ObjectId.
-  List<String> _buildGuestProfilesPayload() {
+  /// Valeurs pour `profileIds` : **tous les participants** (hôte + invités).
+  /// Priorité au document profil (`profileId` / Mongo `_id`), sinon `userId` (voir [HostGuestProfile.id]).
+  List<String> _buildProfileIdsPayload() {
     final out = <String>{};
     for (final p in _groupProfiles) {
-      final u = p.userIdForApi;
-      if (u != null && u.isNotEmpty) out.add(u);
+      final id = p.id;
+      if (id != null && id.isNotEmpty) out.add(id);
     }
     return out.toList();
   }
@@ -230,38 +228,38 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
       return;
     }
 
-    final guestProfilesPayload = _buildGuestProfilesPayload();
+    final profileIds = _buildProfileIdsPayload();
     debugPrint(
-      'Sending profile IDs (guest_profiles = userIds hôte+invités): $guestProfilesPayload',
+      '[HOST_ANALYSE] profileIds (hôte+invités, Mongo id prioritaire): $profileIds',
     );
 
-    if (guestProfilesPayload.length < 2) {
+    if (profileIds.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Impossible d’envoyer le groupe : il faut l’hôte et au moins un invité '
-            'avec un identifiant utilisateur valide.',
+            'avec un identifiant de profil ou utilisateur valide.',
           ),
         ),
       );
       return;
     }
 
-    if (guestProfilesPayload.length != _groupProfiles.length) {
+    if (profileIds.length != _groupProfiles.length) {
       debugPrint(
         'Mismatch in profile mapping: ${_groupProfiles.length} membres, '
-        '${guestProfilesPayload.length} userIds distincts (certains invités sans userId ?)',
+        '${profileIds.length} IDs distincts (certains invités sans id ?)',
       );
     }
 
     setState(() => _isGeneratingMenu = true);
     debugPrint(
-      '[HOST_ANALYSE] POST /menu/generate-group guest_profiles: $guestProfilesPayload, '
+      '[HOST_ANALYSE] POST /menu/generate-group profileIds: $profileIds, '
       'ingredients: ${_allIngredients.length}',
     );
     try {
       final response = await MenuApiService.generateGroupConsensusMenu(
-        guestProfilesPayload,
+        profileIds,
         ingredients: _allIngredients,
       );
       if (!mounted) return;
