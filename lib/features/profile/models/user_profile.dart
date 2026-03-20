@@ -86,7 +86,16 @@ class UserProfile {
         ? root['algorithmFeatures'] as Map<String, dynamic>
         : const <String, dynamic>{};
 
+    String? readDocId() {
+      String? pick(String k) {
+        final v = root[k]?.toString().trim();
+        return (v != null && v.isNotEmpty) ? v : null;
+      }
+      return pick('_id') ?? pick('profileId') ?? pick('id');
+    }
+
     return UserProfile(
+      id: readDocId(),
       userId: root['userId']?.toString(),
       firstName: (root['firstName'] ?? '') as String,
       lastName: (root['lastName'] ?? '') as String,

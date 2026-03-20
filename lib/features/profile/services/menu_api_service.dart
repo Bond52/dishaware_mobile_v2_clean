@@ -28,7 +28,9 @@ class MenuApiService {
 
   /// Génère un menu pour un groupe.
   /// POST `/menu/generate-group`
-  /// Body: `{ "guest_profiles": [...], "ingredients": [...] }` (ingrédients optionnels, soft constraints).
+  /// Body: `{ "guest_profiles": [...], "ingredients": [...] }`.
+  /// `guest_profiles` = liste d’identifiants pour résoudre chaque **UserProfile** (souvent les
+  /// **`userId`**, hôte + invités — au moins 2 entrées). À aligner avec la résolution côté serveur.
   /// Réponse attendue: { "menu": {...}, "explanation": "...", "adjustments": [...] }
   static Future<GroupMenuResult> generateGroupConsensusMenu(
     List<String> guestProfiles, {

@@ -205,20 +205,63 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     });
   }
 
+  /// Valeurs pour `guest_profiles` : **tous les participants** (hôte + invités), par **`userId`**.
+  ///
+  /// Le backend local renvoie « Au moins 2 profils requis » si moins de 2 profils sont résolus :
+  /// il semble résoudre par `userId`, pas par `_id` Mongo — d’où l’envoi des `userId` plutôt que des ObjectId.
+  List<String> _buildGuestProfilesPayload() {
+    final out = <String>{};
+    for (final p in _groupProfiles) {
+      final u = p.userIdForApi;
+      if (u != null && u.isNotEmpty) out.add(u);
+    }
+    return out.toList();
+  }
+
   Future<void> _onGenerateMenu() async {
     if (_isGeneratingMenu) return;
-    setState(() => _isGeneratingMenu = true);
-    final profileIds = _groupProfiles
-        .map((p) => p.profileId ?? p.userId)
-        .where((id) => id.isNotEmpty)
-        .toList();
+
+    if (widget.selectedProfiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ajoutez au moins un invité pour générer un menu de groupe.'),
+        ),
+      );
+      return;
+    }
+
+    final guestProfilesPayload = _buildGuestProfilesPayload();
     debugPrint(
-      '[HOST_ANALYSE] POST /menu/generate-group guest_profiles: $profileIds, '
+      'Sending profile IDs (guest_profiles = userIds hôte+invités): $guestProfilesPayload',
+    );
+
+    if (guestProfilesPayload.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossible d’envoyer le groupe : il faut l’hôte et au moins un invité '
+            'avec un identifiant utilisateur valide.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (guestProfilesPayload.length != _groupProfiles.length) {
+      debugPrint(
+        'Mismatch in profile mapping: ${_groupProfiles.length} membres, '
+        '${guestProfilesPayload.length} userIds distincts (certains invités sans userId ?)',
+      );
+    }
+
+    setState(() => _isGeneratingMenu = true);
+    debugPrint(
+      '[HOST_ANALYSE] POST /menu/generate-group guest_profiles: $guestProfilesPayload, '
       'ingredients: ${_allIngredients.length}',
     );
     try {
       final response = await MenuApiService.generateGroupConsensusMenu(
-        profileIds,
+        guestProfilesPayload,
         ingredients: _allIngredients,
       );
       if (!mounted) return;
@@ -235,47 +278,21 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     } on DioException catch (e) {
       if (!mounted) return;
       final statusCode = e.response?.statusCode;
-      if (statusCode == 400 &&
-          profileIds.length > 1 &&
-          _hostProfile?.profileId != null &&
-          _hostProfile!.profileId!.isNotEmpty) {
-        try {
-          final fallbackResponse = await MenuApiService.generateGroupConsensusMenu(
-            [_hostProfile!.profileId!],
-          );
-          if (!mounted) return;
-          setState(() => _isGeneratingMenu = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Menu généré pour votre profil. Le serveur n\'a pas reconnu les profils invités.',
-              ),
-              duration: Duration(seconds: 4),
-            ),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute<void>(
-              builder: (context) => HostModeMenuScreen(
-                selectedProfiles: widget.selectedProfiles,
-                menuResult: fallbackResponse,
-              ),
-            ),
-          );
-          return;
-        } catch (_) {
-          if (!mounted) return;
-        }
-      }
       setState(() => _isGeneratingMenu = false);
       String message = 'Impossible de générer le menu.';
       if (statusCode == 404) {
         message =
             'Endpoint menu groupe non disponible (POST /menu/generate-group).';
       } else if (statusCode == 400) {
-        message =
-            'Le serveur n\'a pas reconnu un ou plusieurs profils (IDs invalides). '
-            'Le backend doit accepter les profileIds envoyés.';
+        final data = e.response?.data;
+        if (data is Map && data['message'] != null) {
+          final m = data['message'].toString().trim();
+          if (m.isNotEmpty) message = m;
+        } else {
+          message =
+              'Certains profils sont invalides. Veuillez réessayer.';
+        }
+        debugPrint('[HOST_ANALYSE] 400 body: ${e.response?.data}');
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 5)),

@@ -42,12 +42,33 @@ class ReceivedShareProfile {
     final userId = (json['userId'] ??
             json['ownerUserId'] ??
             owner?['userId'] ??
+            user?['userId'] ??
             owner?['_id'] ??
             json['id'] ??
-            json['_id'] ??
             '')
         .toString();
-    final profileId = (json['profileId'] ?? json['profile_id'] ?? owner?['profileId'] ?? user?['profileId'] ?? json['_id'])?.toString();
+    // `profileId` = document UserProfile en base — ne pas utiliser `json['_id']` (souvent id du « share »).
+    Map<String, dynamic>? profileNode;
+    if (json['profile'] is Map) {
+      profileNode = Map<String, dynamic>.from(json['profile'] as Map);
+    } else if (owner?['profile'] is Map) {
+      profileNode = Map<String, dynamic>.from(owner!['profile'] as Map);
+    } else if (user?['profile'] is Map) {
+      profileNode = Map<String, dynamic>.from(user!['profile'] as Map);
+    }
+    String? profileId = (json['profileId'] ??
+            json['profile_id'] ??
+            json['ownerProfileId'] ??
+            owner?['profileId'] ??
+            user?['profileId'])
+        ?.toString()
+        .trim();
+    if ((profileId == null || profileId.isEmpty) && profileNode != null) {
+      profileId = (profileNode['_id'] ?? profileNode['id'] ?? profileNode['profileId'])
+          ?.toString()
+          .trim();
+    }
+    if (profileId != null && profileId.isEmpty) profileId = null;
     return ReceivedShareProfile(
       userId: userId,
       profileId: profileId,

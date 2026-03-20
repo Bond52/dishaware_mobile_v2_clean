@@ -21,6 +21,22 @@ class HostGuestProfile {
     this.diets = const [],
     this.favoriteCuisines = const [],
   });
+
+  /// Identifiant backend pour `guest_profiles` : document **UserProfile** (`profileId` / MongoDB `_id`)
+  /// en priorité, sinon `userId` si c’est ce que le serveur attend.
+  String? get id {
+    final p = profileId?.trim();
+    if (p != null && p.isNotEmpty) return p;
+    final u = userId.trim();
+    return u.isEmpty ? null : u;
+  }
+
+  /// `userId` métier (auth / champ `userId` du profil) — souvent ce que le backend utilise pour
+  /// résoudre les documents dans `POST /menu/generate-group`.
+  String? get userIdForApi {
+    final u = userId.trim();
+    return u.isEmpty ? null : u;
+  }
 }
 
 /// État du groupe pour le flow Mode Hôte.
