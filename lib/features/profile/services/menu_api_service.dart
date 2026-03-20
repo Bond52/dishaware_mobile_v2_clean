@@ -26,15 +26,20 @@ class MenuApiService {
     return menu;
   }
 
-  /// Génère un menu consensus pour un groupe. POST /menu/consensus/group
-  /// Body: { "profileIds": [...] }
+  /// Génère un menu pour un groupe.
+  /// POST `/menu/generate-group`
+  /// Body: `{ "guest_profiles": [...], "ingredients": [...] }` (ingrédients optionnels, soft constraints).
   /// Réponse attendue: { "menu": {...}, "explanation": "...", "adjustments": [...] }
   static Future<GroupMenuResult> generateGroupConsensusMenu(
-    List<String> profileIds,
-  ) async {
+    List<String> guestProfiles, {
+    List<String> ingredients = const [],
+  }) async {
     final response = await ApiClient.dio.post(
-      '/menu/consensus/group',
-      data: {'profileIds': profileIds},
+      '/menu/generate-group',
+      data: {
+        'guest_profiles': guestProfiles,
+        'ingredients': ingredients,
+      },
       options: await ApiClient.optionsWithUserId(),
     );
     final data = response.data;

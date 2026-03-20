@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../features/profile/services/menu_api_service.dart';
 import '../features/profile/services/profile_api_service.dart';
 import '../theme/da_colors.dart';
+import '../ui/host/ingredients_scan_bottom_sheet.dart';
 import '../utils/translate_value.dart';
 import 'host_mode_menu_screen.dart';
 import 'host_mode_models.dart';
@@ -57,6 +57,18 @@ class _AnalysisBody extends StatefulWidget {
 class _AnalysisBodyState extends State<_AnalysisBody> {
   bool _isGeneratingMenu = false;
   HostGuestProfile? _hostProfile;
+
+  /// Ingrédients issus du scan IA (image).
+  List<String> _detectedIngredients = [];
+
+  /// Ingrédients ajoutés à la main (contraintes souples, optionnel).
+  List<String> _manualIngredients = [];
+
+  /// Union dédupliquée — toujours envoyée au backend (peut être vide).
+  List<String> get _allIngredients => {
+        ..._detectedIngredients,
+        ..._manualIngredients,
+      }.toList();
 
   /// Groupe = hôte + invités (l'hôte est inclus dans l'analyse).
   List<HostGuestProfile> get _groupProfiles {
@@ -180,6 +192,19 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
     return points;
   }
 
+  Future<void> _openIngredientsSheet() async {
+    final result = await showIngredientsScanSheet(
+      context,
+      initialDetected: List<String>.from(_detectedIngredients),
+      initialManual: List<String>.from(_manualIngredients),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _detectedIngredients = List<String>.from(result['detected'] ?? const []);
+      _manualIngredients = List<String>.from(result['manual'] ?? const []);
+    });
+  }
+
   Future<void> _onGenerateMenu() async {
     if (_isGeneratingMenu) return;
     setState(() => _isGeneratingMenu = true);
@@ -187,10 +212,15 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
         .map((p) => p.profileId ?? p.userId)
         .where((id) => id.isNotEmpty)
         .toList();
-    debugPrint('[HOST_ANALYSE] POST menu/consensus/group profileIds: $profileIds');
+    debugPrint(
+      '[HOST_ANALYSE] POST /menu/generate-group guest_profiles: $profileIds, '
+      'ingredients: ${_allIngredients.length}',
+    );
     try {
-      final response =
-          await MenuApiService.generateGroupConsensusMenu(profileIds);
+      final response = await MenuApiService.generateGroupConsensusMenu(
+        profileIds,
+        ingredients: _allIngredients,
+      );
       if (!mounted) return;
       setState(() => _isGeneratingMenu = false);
       Navigator.pushReplacement(
@@ -241,7 +271,7 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
       String message = 'Impossible de générer le menu.';
       if (statusCode == 404) {
         message =
-            'Endpoint menu groupe non disponible (POST /menu/consensus/group).';
+            'Endpoint menu groupe non disponible (POST /menu/generate-group).';
       } else if (statusCode == 400) {
         message =
             'Le serveur n\'a pas reconnu un ou plusieurs profils (IDs invalides). '
@@ -315,31 +345,73 @@ class _AnalysisBodyState extends State<_AnalysisBody> {
               ),
             ],
           ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: _isGeneratingMenu ? null : _onGenerateMenu,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFE0E0E0),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_allIngredients.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    '🥕 ${_allIngredients.length} ingrédients ajoutés',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6A5FD3),
+                    ),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: _isGeneratingMenu ? null : _openIngredientsSheet,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF3F1FF),
+                  foregroundColor: const Color(0xFF6A5FD3),
+                  side: const BorderSide(color: Color(0xFF6A5FD3), width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.auto_awesome, size: 22),
+                label: const Text(
+                  'Scanner mes ingrédients',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              child: _isGeneratingMenu
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Générer le menu'),
-            ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isGeneratingMenu ? null : _onGenerateMenu,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFE0E0E0),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: _isGeneratingMenu
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Générer le menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
