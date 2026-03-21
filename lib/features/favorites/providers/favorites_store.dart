@@ -80,6 +80,14 @@ class FavoritesStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Après déconnexion ou changement de compte : évite d’afficher les favoris du user précédent.
+  void clearAll() {
+    _favorites.clear();
+    _favoriteDishIds.clear();
+    _sending.clear();
+    notifyListeners();
+  }
+
   Future<void> loadFavorites() async {
     try {
       final dishes = await FavoritesService.getFavorites();

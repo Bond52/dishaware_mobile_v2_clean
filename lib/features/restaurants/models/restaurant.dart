@@ -46,6 +46,13 @@ class Restaurant {
   final List<CompatibleDish> sureLike;
   final List<CompatibleDish> discover;
   final List<CompatibleDish> adjustments;
+  /// Types de cuisine (ex. chinese, indian) — utilisé pour le classement.
+  final List<String> cuisines;
+  /// Données optionnelles renvoyées par le backend (score, détails…).
+  final Map<String, dynamic>? scoreDetails;
+  /// Score 0–1 après [applyCompatibilityRanking] ou renseigné par l’API.
+  final double? compatibilityScore;
+  final String? explanation;
 
   const Restaurant({
     required this.id,
@@ -58,7 +65,45 @@ class Restaurant {
     required this.sureLike,
     required this.discover,
     required this.adjustments,
+    this.cuisines = const [],
+    this.scoreDetails,
+    this.compatibilityScore,
+    this.explanation,
   });
+
+  Restaurant copyWith({
+    String? id,
+    String? name,
+    double? rating,
+    double? distanceMeters,
+    String? address,
+    bool? isPartner,
+    bool? isMenuReady,
+    List<CompatibleDish>? sureLike,
+    List<CompatibleDish>? discover,
+    List<CompatibleDish>? adjustments,
+    List<String>? cuisines,
+    Map<String, dynamic>? scoreDetails,
+    double? compatibilityScore,
+    String? explanation,
+  }) {
+    return Restaurant(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      rating: rating ?? this.rating,
+      distanceMeters: distanceMeters ?? this.distanceMeters,
+      address: address ?? this.address,
+      isPartner: isPartner ?? this.isPartner,
+      isMenuReady: isMenuReady ?? this.isMenuReady,
+      sureLike: sureLike ?? this.sureLike,
+      discover: discover ?? this.discover,
+      adjustments: adjustments ?? this.adjustments,
+      cuisines: cuisines ?? this.cuisines,
+      scoreDetails: scoreDetails ?? this.scoreDetails,
+      compatibilityScore: compatibilityScore ?? this.compatibilityScore,
+      explanation: explanation ?? this.explanation,
+    );
+  }
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     final rawRating = json['rating'] ?? json['score'] ?? 0;
@@ -106,6 +151,28 @@ class Restaurant {
     final address =
         (json['address'] ?? json['location']?['address'] ?? '').toString();
 
+    final cuisinesRaw = json['cuisines'] ??
+        json['types'] ??
+        json['categories'] ??
+        json['cuisineTypes'];
+    final List<String> cuisinesList = [];
+    if (cuisinesRaw is List) {
+      for (final e in cuisinesRaw) {
+        final s = e.toString().trim();
+        if (s.isNotEmpty) cuisinesList.add(s);
+      }
+    } else if (cuisinesRaw is String && cuisinesRaw.trim().isNotEmpty) {
+      cuisinesList.addAll(
+        cuisinesRaw.split(RegExp(r'[,;|]')).map((s) => s.trim()).where((s) => s.isNotEmpty),
+      );
+    }
+
+    Map<String, dynamic>? scoreDetails;
+    final sd = json['scoreDetails'] ?? json['compatibility'];
+    if (sd is Map<String, dynamic>) {
+      scoreDetails = Map<String, dynamic>.from(sd);
+    }
+
     return Restaurant(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
@@ -120,6 +187,8 @@ class Restaurant {
       sureLike: sureLikeList,
       discover: discoverList,
       adjustments: adjustmentsList,
+      cuisines: cuisinesList,
+      scoreDetails: scoreDetails,
     );
   }
 

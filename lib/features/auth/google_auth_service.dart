@@ -73,7 +73,9 @@ class GoogleAuthService {
       if (appUser != null) {
         await app_user.User.persist(appUser);
       } else {
-        await prefs.setString('currentUserId', token);
+        await prefs.remove('auth_token');
+        await _signOutAll();
+        return GoogleAuthStatus.invalidToken;
       }
       globalToken = token;
       ApiClient.setToken(token);

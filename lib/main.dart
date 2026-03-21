@@ -44,13 +44,18 @@ void main() async {
 
   if (globalToken != null) {
     ApiClient.setToken(globalToken!);
-    final existingUserId = prefs.getString('currentUserId');
-    if (existingUserId == null || existingUserId.isEmpty) {
-      final user = await User.loadFromPrefs();
-      if (user != null) {
-        await prefs.setString('currentUserId', user.userId);
-      } else {
-        await prefs.setString('currentUserId', globalToken!);
+    final user = await User.loadFromPrefs();
+    if (user != null && user.userId.isNotEmpty) {
+      await prefs.setString('currentUserId', user.userId);
+    } else {
+      final stale = prefs.getString('currentUserId');
+      if (stale != null &&
+          stale.isNotEmpty &&
+          ApiClient.looksLikeJwt(stale)) {
+        await prefs.remove('currentUserId');
+        debugPrint(
+          '[main] currentUserId JWT retiré des prefs (attendu: userId métier après login).',
+        );
       }
     }
   }
@@ -88,6 +93,8 @@ class DishAwareApp extends StatelessWidget {
             ChangeNotifierProvider(
               create: (_) => AuthProvider(
                 isAuthenticated: globalToken != null,
+                hasCompletedOnboarding:
+                    initialUser?.hasCompletedOnboarding == true,
               ),
             ),
             ChangeNotifierProvider(

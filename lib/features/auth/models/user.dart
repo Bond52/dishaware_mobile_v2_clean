@@ -9,12 +9,15 @@ class User {
   final String firstName;
   final String lastName;
   final String? name;
+  /// Renseigné par le backend au login / register (routeur si profil pas encore chargé).
+  final bool? hasCompletedOnboarding;
 
   const User({
     required this.userId,
     required this.firstName,
     required this.lastName,
     this.name,
+    this.hasCompletedOnboarding,
   });
 
   String get displayName {
@@ -36,7 +39,14 @@ class User {
         'firstName': firstName,
         'lastName': lastName,
         if (name != null) 'name': name,
+        if (hasCompletedOnboarding != null)
+          'hasCompletedOnboarding': hasCompletedOnboarding,
       };
+
+  static bool? _boolOrNull(dynamic v) {
+    if (v is bool) return v;
+    return null;
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -44,13 +54,28 @@ class User {
       firstName: (json['firstName'] ?? json['first_name'] ?? '').toString(),
       lastName: (json['lastName'] ?? json['last_name'] ?? '').toString(),
       name: (json['name'] as String?)?.trim(),
+      hasCompletedOnboarding:
+          _boolOrNull(json['hasCompletedOnboarding']),
     );
   }
 
   /// Extrait l'objet user depuis une réponse login (user.userId = profile.userId en base).
   static User? fromLoginResponse(Map<String, dynamic> result) {
+    Map<String, dynamic>? userMap;
     if (result['user'] is Map<String, dynamic>) {
-      return User.fromJson(Map<String, dynamic>.from(result['user'] as Map));
+      userMap = Map<String, dynamic>.from(result['user'] as Map);
+    } else if (result['data'] is Map<String, dynamic>) {
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      if (data['user'] is Map<String, dynamic>) {
+        userMap = Map<String, dynamic>.from(data['user'] as Map);
+      } else {
+        userMap = data;
+      }
+    }
+    if (userMap != null) {
+      final u = User.fromJson(userMap);
+      if (u.userId.isEmpty) return null;
+      return u;
     }
     final userId = result['userId'] ?? result['id'];
     final firstName = result['firstName'] ?? result['first_name'];
@@ -62,6 +87,7 @@ class User {
       firstName: (firstName ?? '').toString(),
       lastName: (lastName ?? '').toString(),
       name: (name != null && name.isNotEmpty) ? name : null,
+      hasCompletedOnboarding: _boolOrNull(result['hasCompletedOnboarding']),
     );
   }
 

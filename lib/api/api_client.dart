@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
+import '../features/auth/models/user.dart';
 
 /// Intercepteur pour logger les requêtes/réponses API (visible dans la console en debug).
 class _ApiLogInterceptor extends Interceptor {
@@ -82,14 +83,53 @@ class ApiClient {
     dio.options.headers.remove("Authorization");
   }
 
-  /// Retourne le userId courant (persisté après login, header x-user-id).
+  /// Heuristique : ne jamais envoyer un JWT comme `x-user-id` (favoris / profil par utilisateur).
+  static bool looksLikeJwt(String value) {
+    final v = value.trim();
+    if (v.length < 20) return false;
+    final parts = v.split('.');
+    return parts.length == 3 &&
+        parts.every((p) => p.isNotEmpty) &&
+        !RegExp(r'^[a-f0-9]{24}$', caseSensitive: false).hasMatch(v);
+  }
+
+  /// UserId pour `x-user-id` : **priorité à `currentUserId` en prefs** (mis à jour par
+  /// [ProfileApiService] après GET /profile/me), puis [User] au login — sans réécraser
+  /// les prefs avec l’ancien userId du JSON `currentUser` (sinon restaurants / mockAuth
+  /// repassent sur un id non-ObjectId).
   static Future<String> get currentUserId async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('currentUserId');
-    if (userId == null || userId.isEmpty) {
-      throw Exception('Utilisateur non connecté (userId manquant)');
+    final fromPrefs = prefs.getString('currentUserId');
+
+    if (fromPrefs != null &&
+        fromPrefs.isNotEmpty &&
+        !looksLikeJwt(fromPrefs)) {
+      return fromPrefs;
     }
-    return userId;
+
+    final persisted = await User.loadFromPrefs();
+    if (persisted != null && persisted.userId.isNotEmpty) {
+      if (looksLikeJwt(persisted.userId)) {
+        throw Exception(
+          'userId invalide : un jeton a été stocké à la place du userId. '
+          'Déconnectez-vous et reconnectez-vous.',
+        );
+      }
+      await prefs.setString('currentUserId', persisted.userId);
+      return persisted.userId;
+    }
+
+    if (fromPrefs != null && fromPrefs.isNotEmpty) {
+      if (looksLikeJwt(fromPrefs)) {
+        throw Exception(
+          'userId invalide : un jeton a été stocké à la place du userId. '
+          'Déconnectez-vous et reconnectez-vous.',
+        );
+      }
+      return fromPrefs;
+    }
+
+    throw Exception('Utilisateur non connecté (userId manquant)');
   }
 
   /// Options Dio avec l’en-tête x-user-id du profil connecté (pour favoris, recommandations, etc.).

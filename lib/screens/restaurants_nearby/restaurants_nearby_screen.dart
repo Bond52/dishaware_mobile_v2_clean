@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import '../../theme/da_colors.dart';
 import '../../ui/components/da_badge.dart';
 import '../../ui/components/da_button.dart';
 import '../../ui/components/da_card.dart';
+import '../../features/profile/providers/profile_provider.dart';
 import '../../features/restaurants/models/restaurant.dart';
+import '../../features/restaurants/restaurant_compatibility_scoring.dart';
 import '../../services/restaurant_service.dart';
 
 class RestaurantsNearbyScreen extends StatefulWidget {
@@ -45,8 +49,19 @@ class _RestaurantsNearbyScreenState extends State<RestaurantsNearbyScreen>
       ).timeout(const Duration(seconds: 12));
       debugPrint('🍽️ Restaurants reçus: ${items.length}');
       if (!mounted) return;
+      final profile = context.read<ProfileProvider>().profile;
+      final ranked = applyCompatibilityRanking(items, profile);
+      if (kDebugMode) {
+        for (var i = 0; i < ranked.length && i < 5; i++) {
+          final r = ranked[i];
+          debugPrint(
+            '🎯 [nearby] #${i + 1} ${r.name} score=${((r.compatibilityScore ?? 0) * 100).toStringAsFixed(0)}%',
+          );
+        }
+      }
+      if (!mounted) return;
       setState(() {
-        _restaurants = items;
+        _restaurants = ranked;
         _isLoading = false;
       });
     } catch (e) {
@@ -169,6 +184,7 @@ class _RestaurantsNearbyScreenState extends State<RestaurantsNearbyScreen>
           child: RestaurantAccordionCard(
             restaurant: restaurant,
             isExpanded: isExpanded,
+            showDebugCompatibility: kDebugMode,
             onTap: () {
               setState(() {
                 _expandedId = isExpanded ? null : restaurantKey;
@@ -185,12 +201,15 @@ class RestaurantAccordionCard extends StatelessWidget {
   final Restaurant restaurant;
   final bool isExpanded;
   final VoidCallback onTap;
+  /// Affiche score détaillé dans la zone « Analyse du menu » (debug).
+  final bool showDebugCompatibility;
 
   const RestaurantAccordionCard({
     super.key,
     required this.restaurant,
     required this.isExpanded,
     required this.onTap,
+    this.showDebugCompatibility = false,
   });
 
   @override
@@ -270,6 +289,27 @@ class RestaurantAccordionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               DABadge(label: badgeLabel, variant: badgeVariant),
+              if (restaurant.compatibilityScore != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome,
+                      size: 16,
+                      color: Color(0xFF00A57A),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${((restaurant.compatibilityScore ?? 0) * 100).toInt()}% match',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF00A57A),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -285,7 +325,10 @@ class RestaurantAccordionCard extends StatelessWidget {
     if (!restaurant.isMenuReady) {
       return Padding(
         padding: const EdgeInsets.only(top: 16),
-        child: _MenuAnalyzingCard(),
+        child: _MenuAnalyzingCard(
+          restaurant: restaurant,
+          showDebug: showDebugCompatibility,
+        ),
       );
     }
 
@@ -294,6 +337,10 @@ class RestaurantAccordionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showDebugCompatibility && restaurant.compatibilityScore != null) ...[
+            _CompatibilityDebugPanel(restaurant: restaurant),
+            const SizedBox(height: 12),
+          ],
           if (restaurant.address.isNotEmpty) ...[
             Row(
               children: [
@@ -443,7 +490,75 @@ class _PartnerBanner extends StatelessWidget {
   }
 }
 
+class _CompatibilityDebugPanel extends StatelessWidget {
+  final Restaurant restaurant;
+
+  const _CompatibilityDebugPanel({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Score: ${((restaurant.compatibilityScore ?? 0) * 100).toInt()}%',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: DAColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            restaurant.explanation ?? '',
+            style: const TextStyle(
+              fontSize: 12,
+              color: DAColors.mutedForeground,
+            ),
+          ),
+          if (restaurant.cuisines.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Cuisines: ${restaurant.cuisines.join(", ")}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: DAColors.mutedForeground,
+              ),
+            ),
+          ],
+          if (restaurant.scoreDetails != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Détails: ${restaurant.scoreDetails.toString()}',
+              style: const TextStyle(
+                fontSize: 10,
+                color: DAColors.mutedForeground,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _MenuAnalyzingCard extends StatelessWidget {
+  final Restaurant restaurant;
+  final bool showDebug;
+
+  const _MenuAnalyzingCard({
+    required this.restaurant,
+    this.showDebug = false,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -454,14 +569,20 @@ class _MenuAnalyzingCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE1E4E8)),
       ),
       child: Column(
-        children: const [
-          CircleAvatar(
+        children: [
+          if (showDebug && restaurant.compatibilityScore != null) ...[
+            _CompatibilityDebugPanel(restaurant: restaurant),
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 14),
+          ],
+          const CircleAvatar(
             radius: 22,
             backgroundColor: Color(0xFFF3F4F6),
             child: Icon(Icons.auto_awesome, color: Color(0xFF9CA3AF)),
           ),
-          SizedBox(height: 10),
-          Text(
+          const SizedBox(height: 10),
+          const Text(
             'Analyse du menu en cours',
             style: TextStyle(
               fontSize: 14,
@@ -469,8 +590,8 @@ class _MenuAnalyzingCard extends StatelessWidget {
               color: DAColors.foreground,
             ),
           ),
-          SizedBox(height: 6),
-          Text(
+          const SizedBox(height: 6),
+          const Text(
             'Nous analysons le menu de ce restaurant pour vous proposer des recommandations personnalisées.',
             textAlign: TextAlign.center,
             style: TextStyle(

@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart';
+
 import '../api/api_client.dart';
 import '../features/recommendations/domain/recommended_dish.dart';
 
 class FavoritesService {
   static Future<void> toggleFavorite({required String dishId}) async {
+    final userId = await ApiClient.currentUserId;
+    debugPrint('Favorites request userId: $userId');
     await ApiClient.dio.post(
       '/favorites/toggle',
       data: {
@@ -13,6 +17,8 @@ class FavoritesService {
   }
 
   static Future<List<RecommendedDish>> getFavorites() async {
+    final userId = await ApiClient.currentUserId;
+    debugPrint('Favorites request userId: $userId');
     final response = await ApiClient.dio.get(
       '/favorites',
       options: await ApiClient.optionsWithUserId(),

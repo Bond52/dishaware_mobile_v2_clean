@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../auth/logout_service.dart';
 import '../../auth/providers/user_provider.dart';
+import '../../favorites/providers/favorites_store.dart';
 import '../../notifications/notification_settings_widget.dart';
 import '../../../main.dart';
 import '../../onboarding/providers/auth_provider.dart';
@@ -635,8 +636,9 @@ class ProfileScreen extends StatelessWidget {
     if (!context.mounted) return;
     globalToken = null;
     await context.read<UserProvider>().clearUser();
+    context.read<FavoritesStore>().clearAll();
     context.read<AuthProvider>().signOut();
-    context.read<ProfileProvider>().clearProfile();
+    await context.read<ProfileProvider>().clearProfile();
     RouterRefresh.instance.refresh();
     if (!context.mounted) return;
     context.go('/welcome');

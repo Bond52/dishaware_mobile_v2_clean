@@ -10,6 +10,8 @@ import '../../../features/auth/google_auth_service.dart';
 import '../../../features/auth/models/user.dart';
 import '../../../features/auth/providers/user_provider.dart';
 import '../../../features/auth/screens/email_auth_screen.dart';
+import '../../../features/favorites/providers/favorites_store.dart';
+import '../../../features/profile/providers/profile_provider.dart';
 import '../../../main.dart';
 import '../providers/auth_provider.dart';
 
@@ -135,8 +137,17 @@ class _AuthScreenState extends State<AuthScreen> {
     switch (status) {
       case GoogleAuthStatus.success:
         final user = await User.loadFromPrefs();
-        if (user != null && mounted) context.read<UserProvider>().setUser(user);
+        if (!mounted) return;
+        if (user != null) await context.read<UserProvider>().setUser(user);
+        if (!mounted) return;
         context.read<AuthProvider>().authenticate(AuthMethod.google);
+        if (user?.hasCompletedOnboarding == true) {
+          context.read<AuthProvider>().completeOnboarding();
+        }
+        await context.read<ProfileProvider>().loadMyProfile();
+        if (!mounted) return;
+        await context.read<FavoritesStore>().loadFavorites();
+        if (!mounted) return;
         context.go('/home');
         break;
       case GoogleAuthStatus.cancelled:

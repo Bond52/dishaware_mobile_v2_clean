@@ -7,6 +7,9 @@ import '../api/auth_api.dart';
 import '../api/api_client.dart';
 import '../features/auth/models/user.dart';
 import '../features/auth/providers/user_provider.dart';
+import '../features/favorites/providers/favorites_store.dart';
+import '../features/onboarding/providers/auth_provider.dart';
+import '../features/profile/providers/profile_provider.dart';
 import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -53,17 +56,35 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result["success"] == true && result["token"] != null) {
         final token = result["token"] as String;
         final user = User.fromLoginResponse(Map<String, dynamic>.from(result));
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("auth_token", token);
         if (user != null) {
           await User.persist(user);
           if (mounted) context.read<UserProvider>().setUser(user);
         } else {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString("auth_token", token);
-          await prefs.setString('currentUserId', token);
+          if (mounted) {
+            setState(() {
+              errorMessage =
+                  'Réponse serveur incomplète : identifiant utilisateur manquant.';
+            });
+          }
+          return;
         }
         globalToken = token;
         ApiClient.setToken(token);
-        if (mounted) context.go('/home');
+        if (!mounted) return;
+        final auth = context.read<AuthProvider>();
+        auth.authenticate(AuthMethod.email);
+        if (user.hasCompletedOnboarding == true) {
+          auth.completeOnboarding();
+        } else {
+          auth.setHasCompletedOnboarding(false);
+        }
+        await context.read<ProfileProvider>().loadMyProfile();
+        if (!mounted) return;
+        await context.read<FavoritesStore>().loadFavorites();
+        if (!mounted) return;
+        context.go('/home');
       } else {
         setState(() {
           errorMessage =

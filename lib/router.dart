@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'features/auth/providers/user_provider.dart';
 import 'features/onboarding/providers/auth_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'router_refresh.dart';
@@ -27,12 +28,11 @@ final GoRouter appRouter = GoRouter(
 
   redirect: (context, state) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     final profileProvider =
         Provider.of<ProfileProvider>(context, listen: false);
     final currentPath = state.uri.path;
-    final hasCompletedOnboarding =
-        profileProvider.profile?.hasCompletedOnboarding ??
-            authProvider.hasCompletedOnboarding;
+    final profile = profileProvider.profile;
     final isBootRoute = currentPath == '/boot';
     final isOnboardingRoute =
         currentPath == '/welcome' ||
@@ -41,28 +41,92 @@ final GoRouter appRouter = GoRouter(
         currentPath == '/onboarding/flow' ||
         currentPath == '/onboarding/confirmation';
 
-    // Debug: valeur utilisée pour le redirect (profile ?? auth)
-    if (kDebugMode) {
-      print('ROUTER CHECK path=$currentPath loading=${profileProvider.isLoading} '
-          'hasCompletedOnboarding=$hasCompletedOnboarding (profile=${profileProvider.profile?.hasCompletedOnboarding} auth=${authProvider.hasCompletedOnboarding})');
-    }
+    final isAuthenticated = authProvider.isAuthenticated;
+    final lastKnownOnboardingComplete =
+        profileProvider.lastKnownOnboardingComplete;
+    final hasCompletedOnboarding = profile?.hasCompletedOnboarding == true;
+    /// Session : flag mis à jour au login (AuthProvider) + persisté sur [User] (redémarrage).
+    final sessionSaysOnboardingComplete = authProvider.hasCompletedOnboarding ||
+        userProvider.currentUser?.hasCompletedOnboarding == true;
+
+    /// Accès /home : profil OK **ou** session indique onboarding terminé (évite renvoi /welcome
+    /// juste après login alors que [ProfileProvider] n’a pas encore rechargé).
+    final canAccessHome = hasCompletedOnboarding ||
+        (isAuthenticated && sessionSaysOnboardingComplete);
 
     // ⏳ Attendre le chargement du profil avant toute redirection
     if (profileProvider.isLoading) {
+      if (kDebugMode) {
+        debugPrint('Routing debug (loading → /boot): path=$currentPath');
+      }
       return isBootRoute ? null : '/boot';
     }
 
-    // ✅ Règle d'entrée centralisée :
-    // - Authentifié + onboarding non terminé → /onboarding/flow (une seule navigation).
-    // - Non authentifié + onboarding non terminé → /welcome.
-    // - Onboarding terminé → /home (et éviter login/onboarding).
-    if (!hasCompletedOnboarding && !isOnboardingRoute) {
-      return authProvider.isAuthenticated ? '/onboarding/flow' : '/welcome';
+    if (kDebugMode) {
+      debugPrint('Routing debug:');
+      debugPrint('  path: $currentPath');
+      debugPrint('  isAuthenticated: $isAuthenticated');
+      debugPrint('  profile: ${profile != null ? "loaded" : "null"}');
+      if (profile != null) {
+        debugPrint(
+          '  hasCompletedOnboarding (from profile): $hasCompletedOnboarding',
+        );
+      } else {
+        debugPrint(
+          '  hasCompletedOnboarding: false (no profile object)',
+        );
+      }
+      debugPrint(
+        '  sessionSaysOnboardingComplete: $sessionSaysOnboardingComplete',
+      );
+      debugPrint(
+        '  lastKnownOnboardingComplete: $lastKnownOnboardingComplete',
+      );
+      debugPrint('  canAccessHome: $canAccessHome');
     }
 
-    if (hasCompletedOnboarding &&
-        (currentPath == '/login' || isOnboardingRoute || isBootRoute)) {
-      return '/home';
+    // Éviter la boucle « connecté mais profil null » uniquement si la **session** dit déjà
+    // onboarding terminé (sinon on casse l’inscription : token + profil pas encore créé).
+    if (isAuthenticated &&
+        profile == null &&
+        sessionSaysOnboardingComplete &&
+        currentPath == '/onboarding/flow') {
+      return '/welcome';
+    }
+
+    if (canAccessHome) {
+      if (currentPath == '/login' || isOnboardingRoute || isBootRoute) {
+        return '/home';
+      }
+      return null;
+    }
+
+    // Accès refusé à /home : renvoi onboarding (nouveau compte) ou welcome (hors session).
+    if (currentPath == '/home') {
+      if (!isAuthenticated) {
+        return '/welcome';
+      }
+      if (canAccessHome) {
+        return null;
+      }
+      if (profile != null && !profile.hasCompletedOnboarding) {
+        return '/onboarding/flow';
+      }
+      // Authentifié, pas d’accès home : profil null + session sans onboarding terminé → flow.
+      return '/onboarding/flow';
+    }
+
+    if (!isOnboardingRoute) {
+      if (!isAuthenticated) {
+        return '/welcome';
+      }
+      if (canAccessHome) {
+        return null;
+      }
+      if (profile != null && !profile.hasCompletedOnboarding) {
+        return '/onboarding/flow';
+      }
+      return '/onboarding/flow';
     }
 
     return null;

@@ -2,9 +2,65 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../api/api_client.dart';
+import '../../auth/models/user.dart';
 import '../models/user_profile.dart';
 
 class ProfileApiService {
+  static final RegExp _mongoObjectIdHex =
+      RegExp(r'^[a-f0-9]{24}$', caseSensitive: false);
+
+  static bool _isMongoObjectIdString(String s) =>
+      _mongoObjectIdHex.hasMatch(s.trim());
+
+  /// Met à jour `currentUserId` + JSON [User] avec l’id attendu en `x-user-id`.
+  ///
+  /// **Priorité : `userId` du profil** (clé métier : mock_, ObjectId compte, etc.) — c’est ce que
+  /// `/profile/me`, recommandations et favoris résolvent en base. Le **`_id` du document UserProfile**
+  /// n’est pas interchangeable (sinon 404 « Profil introuvable »).
+  ///
+  /// Si `userId` est absent, repli sur un ObjectId 24 hex (`_id` / `id` / `profileId`).
+  static Future<void> _persistCanonicalUserIdFromResponse(
+    Map<String, dynamic> body,
+  ) async {
+    final dataNode =
+        (body['data'] is Map<String, dynamic>) ? body['data'] as Map<String, dynamic> : null;
+    final root = dataNode ?? body;
+
+    String? pick(String key) {
+      final v = root[key]?.toString().trim();
+      return (v != null && v.isNotEmpty) ? v : null;
+    }
+
+    String? canonical = pick('userId');
+    if (canonical == null) {
+      for (final k in ['_id', 'id', 'profileId']) {
+        final v = pick(k);
+        if (v != null && _isMongoObjectIdString(v)) {
+          canonical = v;
+          break;
+        }
+      }
+    }
+
+    if (canonical == null || canonical.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currentUserId', canonical);
+
+    final u = await User.loadFromPrefs();
+    if (u != null && u.userId != canonical) {
+      await User.persist(
+        User(
+          userId: canonical,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          name: u.name,
+          hasCompletedOnboarding: u.hasCompletedOnboarding,
+        ),
+      );
+    }
+  }
+
   static Future<String> _requireUserId() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('currentUserId');
@@ -46,13 +102,9 @@ class ProfileApiService {
         debugPrint('PROFILE RECEIVED: $root');
         debugPrint('ALGO FEATURES: ${root['algorithmFeatures']}');
       }
-      final profile =
-          UserProfile.fromJson(response.data as Map<String, dynamic>);
-      final responseUserId = (response.data as Map<String, dynamic>)['userId'];
-      if (responseUserId != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('currentUserId', responseUserId.toString());
-      }
+      final map = response.data as Map<String, dynamic>;
+      final profile = UserProfile.fromJson(map);
+      await _persistCanonicalUserIdFromResponse(map);
       return profile;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
@@ -70,7 +122,9 @@ class ProfileApiService {
             debugPrint('PROFILE RECEIVED: $root');
             debugPrint('ALGO FEATURES: ${root['algorithmFeatures']}');
           }
-          return UserProfile.fromJson(response.data as Map<String, dynamic>);
+          final map2 = response.data as Map<String, dynamic>;
+          await _persistCanonicalUserIdFromResponse(map2);
+          return UserProfile.fromJson(map2);
         } on DioException catch (e2) {
           if (e2.response?.statusCode == 404) return null;
           rethrow;
@@ -87,13 +141,9 @@ class ProfileApiService {
       data: payload,
       options: await _options(),
     );
-    final profile =
-        UserProfile.fromJson(response.data as Map<String, dynamic>);
-    final responseUserId = (response.data as Map<String, dynamic>)['userId'];
-    if (responseUserId != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('currentUserId', responseUserId.toString());
-    }
+    final map = response.data as Map<String, dynamic>;
+    final profile = UserProfile.fromJson(map);
+    await _persistCanonicalUserIdFromResponse(map);
     return profile;
   }
 
@@ -104,7 +154,9 @@ class ProfileApiService {
       data: payload,
       options: await _options(),
     );
-    return UserProfile.fromJson(response.data as Map<String, dynamic>);
+    final map = response.data as Map<String, dynamic>;
+    await _persistCanonicalUserIdFromResponse(map);
+    return UserProfile.fromJson(map);
   }
 
   /// Récupère le profil d'un utilisateur par son id (pour Mode Hôte, profils partagés).

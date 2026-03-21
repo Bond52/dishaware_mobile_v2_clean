@@ -1,4 +1,5 @@
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 import '../api/api_client.dart';
 import '../features/restaurants/models/restaurant.dart';
 
@@ -8,6 +9,8 @@ class RestaurantService {
     required double lng,
     int radius = 1000,
   }) async {
+    final uid = await ApiClient.currentUserId;
+    debugPrint('[RestaurantService] GET /restaurants/nearby x-user-id: $uid');
     final response = await ApiClient.dio.get(
       '/restaurants/nearby',
       queryParameters: {

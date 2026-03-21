@@ -8,8 +8,10 @@ import '../../../api/auth_api.dart';
 import '../../../main.dart';
 import '../models/user.dart';
 import '../providers/user_provider.dart';
+import '../../favorites/providers/favorites_store.dart';
 import '../../onboarding/providers/auth_provider.dart';
 import '../../onboarding/providers/onboarding_provider.dart';
+import '../../profile/providers/profile_provider.dart';
 
 enum EmailAuthMode {
   signUp,
@@ -154,7 +156,21 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
       await User.persist(user);
       if (mounted) context.read<UserProvider>().setUser(user);
     } else {
-      await prefs.setString('currentUserId', token);
+      await prefs.remove('auth_token');
+      _loading = false;
+      _isSubmitting = false;
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Réponse serveur incomplète : identifiant utilisateur manquant. '
+              'Réessayez ou contactez le support.',
+            ),
+          ),
+        );
+      }
+      return;
     }
     globalToken = token;
     ApiClient.setToken(token);
@@ -179,7 +195,11 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         onboarding.skipStep1IfNamesFilled();
       }
     }
-    // Une seule navigation : le redirect du routeur envoie vers /onboarding/flow si besoin
+    await context.read<ProfileProvider>().loadMyProfile();
+    if (!mounted) return;
+    await context.read<FavoritesStore>().loadFavorites();
+    if (!mounted) return;
+    // Navigation : routeur utilise AuthProvider + profil rechargé.
     context.go('/home');
   }
 
